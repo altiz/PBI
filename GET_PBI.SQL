@@ -128,6 +128,8 @@ BEGIN
     str := 'INSERT PBI.get_calendar';
     get_pbi_main_months;
     str := 'INSERT PBI.get_pbi_main_months';
+    
+    get_nag;
 
 
     INSERT INTO pbi_log ( id,  log_text)
