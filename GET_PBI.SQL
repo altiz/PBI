@@ -1,3 +1,11 @@
+begin
+    EXECUTE IMMEDIATE ' ALTER TABLE PBI.pbi_main_months  ADD NUM_LAG  number;';
+EXCEPTION WHEN OTHERS THEN
+    null;
+end;
+
+/
+
 create or replace PACKAGE     GET_PBI AS 
 
 -- загрузка PBI_GP
@@ -62,7 +70,7 @@ BEGIN
     get_pbi_cob_distr_link;
 
 --------------------------------------------------------
-    
+
      /*INSERT PBI.PBI_DISTR*/     
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_DISTR ' ;
     INSERT INTO pbi.pbi_distr ( id, name, ao_id)
@@ -71,7 +79,7 @@ BEGIN
     JOIN stroy.adm_region  adm ON adm.id=a.pbi_distr_id;
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_DISTR');      
     str := 'INSERT PBI.PBI_DISTR';
-        
+
      /*INSERT PBI.PBI_AO*/   
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.pbi_AO ' ;
     INSERT INTO pbi.pbi_ao ( id,  name)
@@ -80,21 +88,21 @@ BEGIN
     JOIN stroy.adm_region  adm ON adm.id=a.ao_id;
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_AO');   
      str := 'INSERT PBI.PBI_AO';
-    
+
     /*INSERT PBI.PBI_MAIN*/  
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_MAIN ' ;
     pbi.get_cob_v2.calc_pbi_main_loop;
     pbi.get_cob_v2.fill_pbi_main_loop;
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_MAIN');  
      str := 'INSERT PBI.PBI_MAIN';
-  
+
     /*PBI.PBI_POWER*/
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_POWER ' ;
     INSERT INTO PBI.PBI_POWER ( id,  name)
     SELECT id, name FROM stroy.power;   
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_POWER');  
     str := 'INSERT PBI.PBI_POWER';
-    
+
     /*pbi_pp*/
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_PP ' ;
     INSERT INTO pbi_pp(id, name, pbi_gp_id)
@@ -103,22 +111,22 @@ BEGIN
     INNER JOIN pbi_gp gp ON sp.parent_id = gp.id ;
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_PP');      
     str := 'INSERT PBI.PBI_PP';
-    
+
     /*pbi_pp*/        
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_COB_TYPE ' ;
     INSERT INTO PBI.PBI_COB_TYPE 
     SELECT id, name from STROY.COB_TYPE;
     DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.PBI_COB_TYPE');      
     str := 'INSERT PBI.PBI_COB_TYPE';
-    
+
     get_pbi_correct;
     str := 'INSERT PBI.get_pbi_correct';
     get_calendar;
     str := 'INSERT PBI.get_calendar';
     get_pbi_main_months;
     str := 'INSERT PBI.get_pbi_main_months';
-    
-    
+
+
     INSERT INTO pbi_log ( id,  log_text)
     VALUES (SEQ_LOG.NEXTVAL, 'STOP');
     COMMIT;
@@ -301,7 +309,7 @@ PROCEDURE GET_PBI_COB_PREGP_LINK
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_COB_PREGP_LINK ' ;
     INSERT INTO pbi.pbi_cob_pregp_link (pbi_cob_id, pbi_pregp_id)
-    
+
     SELECT DISTINCT c_id, pregp_id FROM
          (
         SELECT DISTINCT c.id c_id, get_pbi.get_pregp(cct.id) pregp_id
@@ -391,23 +399,22 @@ PROCEDURE GET_PBI_CORRECT
     IS
     tmp_count number;
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_COB_PREGP_LINK ' ;
     INSERT INTO pbi_gp(id, name)
     VALUES(1, 'Внебюжетное финансирование');
 
     INSERT INTO pbi_pp(id, name, pbi_gp_id)
     VALUES(1, 'Внебюжетное финансирование', 1);
-    
+
     INSERT INTO pbi.pbi_distr ( id, name, ao_id)
     (select rownum,  'Район не указан',  id from pbi.pbi_ao);
-    
+
     UPDATE pbi.pbi_cob_distr_link
     SET pbi_distr_id = 0
     WHERE pbi_distr_id is null;
-    
+
     INSERT INTO pbi.pbi_distr ( id, name, ao_id)
     VALUES (0,  'Район не указан',  0);
-    
+
     INSERT INTO pbi.pbi_AO ( id, name)
     VALUES (0,  'АО не указан');
     COMMIT;
@@ -450,6 +457,9 @@ PROCEDURE GET_PBI_MAIN_MONTHS
     max_year number := 0;
     min_year number := 0;
     err_msg varchar2(4000);
+    TYPE MainIdList IS TABLE OF NUMBER;
+    list_44 MainIdList := MainIdList();  
+    mainId number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PBI_MAIN_MONTHS ' ;
     FOR y IN (SELECT id FROM pbi.pbi_cob)
@@ -482,7 +492,7 @@ BEGIN
                         min_year := 0;
                         max_year := 0;
                     END;
-        
+
                     BEGIN
                         SELECT sum(get_pbi.GET_SUMM_FOR_TITLE(dat.title_id, x.dt))  INTO n_sum
                         FROM
@@ -511,7 +521,7 @@ BEGIN
                         n_sum := 0;-- n_vrtual_sum;
                         --vc_virtual := 'Y';
                     END;
-            
+
         /*  _44_*/
                     BEGIN
                         SELECT sum(get_pbi.GET_SUMM_FOR_TITLE_44(dat.title_id))  INTO n_sum_44
@@ -539,27 +549,30 @@ BEGIN
                     vc_virtual := 'N';
                     EXCEPTION WHEN NO_DATA_FOUND then
                         n_sum_44 := 0;-- n_vrtual_sum;
-                        --vc_virtual := 'Y';
-                    END;
+                        vc_virtual := 'Y';
+                    END;                    
+                    mainId := pbi.seq_pbi_main_v2.NEXTVAL;
+                    INSERT INTO pbi_main_months (id, cob_id, lf,   dt,   calendar_id, is_virtual, start_constr, stop_constr) 
+                    VALUES (mainId, y.id, NVL(n_sum,0) + NVL(n_sum_44,0), x.dt, x.id, vc_virtual,  min_year, max_year);
                     --DBMS_OUTPUT.PUT_LINE(to_char(x.id) || '   '  ||  n_sum);
-                  --  IF n_sum != 0
-                 --   THEN
-                        INSERT INTO pbi_main_months (id, cob_id, lf,   dt,   calendar_id, is_virtual, start_constr, stop_constr) 
-                        VALUES (pbi.seq_pbi_main_v2.NEXTVAL, y.id, NVL(n_sum,0) + NVL(n_sum_44,0), x.dt, x.id, vc_virtual,  min_year, max_year);
-                --    END IF;
+                    IF n_sum_44 = 0 AND vc_virtual = 'N' AND n_sum = 0
+                    THEN
+                        list_44.EXTEND(mainId);
+                        DBMS_OUTPUT.PUT_LINE(mainId);
+                    END IF;
                 END LOOP;
             Commit; 
         EXCEPTION WHEN OTHERS THEN
             err_msg := SQLERRM;
             ROLLBACK;
             INSERT INTO pbi_log ( id,  log_text)
-            VALUES (SEQ_LOG.NEXTVAL, y.id || err_msg);
+            VALUES (SEQ_LOG.NEXTVAL, substr(y.id || err_msg, 0, 4000));
             COMMIT;
         END;
     END LOOP;   
     COMMIT;
 
- 
+
     FOR y IN (SELECT DISTINCT cob_id as id FROM pbi.pbi_main_months)
     LOOP
         BEGIN
@@ -577,7 +590,7 @@ BEGIN
             END IF;
           END LOOP;
         END;
-    
+
         BEGIN
           FOR x IN (SELECT * FROM pbi.pbi_main_months m WHERE cob_id = y.id ORDER BY id DESC)
           LOOP
@@ -626,7 +639,7 @@ FOR y IN (SELECT DISTINCT cob_id as id FROM pbi.pbi_main_months)
               EXIT;
             END IF;
           END LOOP;
-          
+
           FOR x IN (SELECT * FROM pbi.pbi_main_months m WHERE cob_id = y.id ORDER BY id DESC)
           LOOP
             IF x.start_constr != 0
@@ -642,6 +655,16 @@ FOR y IN (SELECT DISTINCT cob_id as id FROM pbi.pbi_main_months)
           END LOOP;
         END;
     END LOOP;
+    IF list_44.COUNT != 0 THEN
+        FOR x in list_44.FIRST .. list_44.LAST
+        LOOP
+            UPDATE pbi.pbi_main_months
+                SET 
+                    lf = 0,
+                    is_virtual = 'N'
+                WHERE id = list_44(x);
+        END LOOP;
+    END IF;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.PBI_MAIN_MONTHS;
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.PBI_MAIN_MONTHS: ' || to_char(tmp_count) || ' (ROWS)');
@@ -688,7 +711,7 @@ BEGIN
     ELSE 
          RETURN 'N';
     END IF;
-        
+
 EXCEPTION WHEN OTHERS THEN
     RETURN 'N';
 END GET_CURRENT_TITLE_YEAR;
@@ -799,4 +822,3 @@ EXCEPTION WHEN OTHERS THEN
 END get_distr;
 
 END GET_PBI;
-/
