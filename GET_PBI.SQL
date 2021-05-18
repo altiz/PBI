@@ -32,6 +32,9 @@ PROCEDURE GET_CALENDAR;
 -- загрузка PBI_MAIN_MONTHS
 PROCEDURE GET_PBI_MAIN_MONTHS;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
+/*Вычисляет изменение количества переноса сроков*/
+PROCEDURE GET_NAG;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
 FUNCTION GET_PREGP(pcosts_classifier_id IN NUMBER) RETURN NUMBER;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 FUNCTION get_distr(pcod_id in number) RETURN NUMBER;
@@ -670,6 +673,47 @@ FOR y IN (SELECT DISTINCT cob_id as id FROM pbi.pbi_main_months)
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.PBI_MAIN_MONTHS: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_PBI_MAIN_MONTHS;
 
+/*Вычисляет изменение количества переноса сроков*/
+PROCEDURE GET_NAG
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    tmp_max number;
+    tmp_k number;
+    tmp_date_flag number;
+BEGIN
+    FOR x IN (SELECT id FROM pbi.pbi_cob)
+    LOOP
+        tmp_date_flag := 0;
+        tmp_k := 0;
+        FOR y IN (SELECT dt, id, year FROM pbi.pbi_calendar_v3 ORDER BY id)
+        LOOP
+            SELECT MAX(to_number(to_char(tt.end_date, 'yyyy'))) INTO tmp_max  FROM 
+                stroy.title t
+                INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number
+                INNER JOIN stroy.title_term  tt on t.id=tt.title_id
+            WHERE
+                    ct.cob_id = x.id
+                AND TT.TITLE_TERM_TYPE_ID = 1
+                AND t.year >= 2014
+                AND t.delete_date is null  
+                AND t.stage_id = 95
+                AND t.title_type_id in (1,2,3)
+                AND t.state_id = 3
+                AND t.date_from < y.dt;
+            IF tmp_max = y.year AND tmp_date_flag = 0 THEN
+                tmp_date_flag := tmp_max;
+            ELSIF  tmp_date_flag != 0 AND tmp_date_flag < y.year THEN
+                tmp_k := tmp_k + 1;
+                tmp_date_flag := y.year;
+            END IF;
+            UPDATE pbi.pbi_main_months
+              SET 
+                num_lag = tmp_k
+            WHERE calendar_id = y.id AND cob_id = x.id;
+        END LOOP;
+        COMMIT;
+    END LOOP;
+END GET_NAG;
 
 /*Вычисляет подрограмму*/
 FUNCTION GET_PREGP(pcosts_classifier_id IN NUMBER) RETURN NUMBER
