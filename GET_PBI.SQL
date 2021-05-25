@@ -1,5 +1,5 @@
 begin
-    EXECUTE IMMEDIATE ' ALTER TABLE PBI.pbi_main_months  ADD NUM_LAG  number;';
+    EXECUTE IMMEDIATE ' ALTER TABLE PBI.pbi_main_months  ADD NUM_LAG  number';
 EXCEPTION WHEN OTHERS THEN
     null;
 end;
@@ -128,7 +128,7 @@ BEGIN
     str := 'INSERT PBI.get_calendar';
     get_pbi_main_months;
     str := 'INSERT PBI.get_pbi_main_months';
-    
+
     get_nag;
 
 
@@ -174,7 +174,7 @@ BEGIN
              AND dat.rn = 1
         ORDER BY t.title_number
     )
-    SELECT MIN(c.id), MIN(cc.name), MIN(cc.address), 
+    SELECT c.id, cc.name, cc.address,     
         ROUND(AVG(tge.center_latitude), 4), ROUND(AVG(tge.center_longitude), 4),
         NVL(pbi.get_cob_v2.get_gov_prog_by_cost (MAX(NVL(tc.costs_classifier_id,2891))),2891 ) cost_id,
         MAX(extract (year from vt.delivery_date)),
@@ -189,11 +189,13 @@ BEGIN
        GET_CURRENT_TITLE_YEAR(c.id)  is_done
     FROM stroy.cob c    
         INNER JOIN stroy.cob_card cc ON cc.cob_id = c.id
+        AND cc.date_to is NULL
         INNER JOIN stroy.cob_title ct ON ct.cob_id = c.id
         INNER JOIN v_title vt ON vt.title_number = ct.title_number
-        LEFT JOIN stroy.title_geodata_egip tge ON tge.title_number = ct.title_number
+        LEFT JOIN stroy.title_geodata_egip tge ON  tge.title_number = vt.title_number
+        AND tge.date_to is null
         LEFT JOIN stroy.title_costs_classifier tc ON tc.title_id = vt.id
-    GROUP BY c.id
+    GROUP BY c.id, cc.name, cc.address
     ORDER BY c.id;
 
     FOR x IN 
@@ -357,6 +359,7 @@ BEGIN
                 JOIN stroy.ADM_REGION  reg ON reg.id=adm.ADM_REGION_ID                   
             WHERE cc.date_to is null
                 AND reg.delete_date is null
+                AND reg .type = 3
                 AND reg.adm_region_id != reg.id
         ) 
         UNION   
@@ -372,6 +375,7 @@ BEGIN
                 JOIN stroy.ADM_REGION  reg ON reg.id=adm.ADM_REGION_ID
             WHERE cc.date_to is null
                 AND reg.adm_region_id != reg.id
+                AND reg .type = 3
                 AND reg.delete_date is null
         )
     )
