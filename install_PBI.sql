@@ -85,7 +85,8 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.TITLE.ADDRESS IS ''' || 'Адрес титула' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.TITLE.START_YEAR IS ''' || 'Год рождения титула' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.TITLE.FINISH_YEAR IS ''' || 'Год реализации титула' || '''';
-    
+   
+  
 /* CREATE CALENDAR*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'CALENDAR';
@@ -109,6 +110,28 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.CALENDAR.DAY IS ''' || 'Последний день месяца' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.CALENDAR  IS ''' || 'Табица календаря для PBI' || '''';
     
+   /* CREATE POWER*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'POWER';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.POWER CASCADE CONSTRAINTS';
+    END IF;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.POWER
+                                               (ID   NUMBER, 
+                                                NAME                     VARCHAR2(4000 BYTE), 
+                                                RESULT_AIP_ID        NUMBER
+                                                )';
+                                                
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.POWER.NAME IS ''' || 'Название мощности' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.POWER.RESULT_AIP_ID IS ''' || 'Ожидаемый результат АИП' || '''';
+
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_POWER';
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_POWER';
+    END IF; 
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_POWER  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE' ;
 
 /* CREATE MAIN*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -190,8 +213,16 @@ PROCEDURE GET_TITLE;
 PROCEDURE GET_FINANCING_SOURCE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
+/* create GET_EXTEND */
+PROCEDURE GET_EXTEND;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
 /* RUN */
 PROCEDURE RUN;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/* create GET_POWER */
+PROCEDURE GET_POWER;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 END GET_PBI_2V;
@@ -260,7 +291,7 @@ BEGIN
     WHERE  
         t.stage_id = 95
         AND t.state_id = 3
-        AND t.title_number in (43385, 154796, 155177, 109157, 59048, 250866, 700858);
+        AND t.title_number in (43385, 154796, 155177, 109157, 59048, 250866, 700858, 156645,156646,700181,700182,700987,700988,700989,700990,700991,700992,700993,700994,700995,701417,702949,702950,702951,702952);
         COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title;
     INSERT INTO log (id, msg_type, metod, msg) 
@@ -283,6 +314,177 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_FINANCING_SOURCE;
 
+/* create GET_POWER */
+PROCEDURE GET_POWER
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    tmp_count number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.POWER' ;
+    INSERT INTO power (id, name, result_aip_id) 
+    SELECT power_id, name, result_aip_entity_id
+    FROM
+    (
+        SELECT DISTINCT m.power_id, p.name, psp.result_aip_entity_id,
+        DENSE_RANK() OVER (PARTITION BY psp.power_id ORDER BY psp.power_id, psp.result_aip_entity_id) AS rn
+        FROM pbi.main m
+            INNER JOIN stroy.power_state_program psp ON psp.power_id = m.power_id
+            INNER JOIN stroy.power p ON p.id = m.power_id
+        WHERE m.power_id IS NOT NULL
+    )
+    WHERE rn = 1;
+    COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.power;
+    INSERT INTO log (id, msg_type, metod, msg) 
+    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_POWER', 'INSERT PBI.POWER: ' || to_char(tmp_count) || ' (ROWS)');
+END GET_POWER;
+
+/* create GET_EXTEND */
+PROCEDURE GET_EXTEND
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    min_year NUMBER;
+    max_year NUMBER;
+    n_extehd_id NUMBER;
+    tmp_max number;
+    tmp_year number;
+    tmp_k number;
+    tmp_cob number;
+    tmp_end_year number;
+    tmp_count NUMBER;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.EXTEND ' ;
+    FOR x IN (SELECT  m.calendar_id,
+                        (SELECT cct.cob_id FROM stroy.cob_title cct WHERE cct.title_number = m.title_number) cob_id
+                      FROM pbi.main m ORDER BY id)
+                LOOP
+                    BEGIN
+                        SELECT
+                            to_number(to_char(min(tt.start_date),'YYYY')), to_number(to_char(max(tt.end_date),'YYYY')) into min_year, max_year
+                        FROM stroy.title t
+                            INNER JOIN stroy.title_term  tt on t.id=tt.title_id
+                            INNER JOIN pbi.calendar c ON c.id = x.calendar_id
+                            INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number
+                            --LEFT JOIN stroy.build_indicator bi ON bi.title_id = t.id
+                            --LEFT JOIN stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
+                        WHERE -- t.delete_date is null
+                             tt.title_term_type_id = 1
+                            AND t.stage_id = 95
+                            AND t.title_type_id in (1, 2, 3)
+                            AND t.year >= 2014
+                            --AND bic.power_id = NVL(x.power_id, bic.power_id)
+                            --AND bic.financing_source_id = NVL(x.financing_source_id, bic.financing_source_id)
+                            --AND t.state_id = x.title_state_id
+                            AND ct.cob_id = x.cob_id
+                            AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'));
+                        n_extehd_id :=  pbi.seq_extend.nextval;
+                    EXCEPTION WHEN NO_DATA_FOUND THEN
+                        min_year := 0;
+                        max_year := 0;
+                    END;
+
+                    tmp_k := 0;
+                    
+                    FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
+                    LOOP 
+                    BEGIN
+                        with 
+                            dat as (
+                                SELECT t.year ,
+                                    t.id,
+                                    FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, year ORDER BY t.date_from desc) AS tmax,
+                                    ct.cob_id,
+                                    tt.end_date 
+                                FROM stroy.cob_title ct 
+                                    LEFT JOIN stroy.title t ON t.title_number = ct.title_number 
+                                    LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1
+                                WHERE t.stage_id =95
+                                    AND t.state_id =3
+                                    AND ct.cob_id = x.cob_id
+                                    AND t.year BETWEEN 2014 and 2021
+                                    AND  t.year < y.year
+                            ),
+                            dat1 AS (
+                                SELECT dat.year,
+                                    max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y,
+                                    COB_ID,
+                                    FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
+                                FROM dat
+                                WHERE dat.id=tmax
+                            ),
+                            dat2 AS (
+                                SELECT YEAR,
+                                    fin_y,
+                                    cob_id,
+                                    RANK() OVER(PARTITION BY cob_id ORDER BY year) AS DR
+                                FROM dat1
+                                WHERE YEAR=FIN_Y
+                                    --AND fin_y<>cfy
+                                GROUP BY YEAR,
+                                    fin_y,
+                                    cob_id
+                                ORDER BY cob_id
+                            )
+                        SELECT cob_id,  max(dr) INTO tmp_cob, tmp_k
+                        FROM dat2 
+                        GROUP BY 
+                          cob_id
+                        ORDER BY cob_id;
+                    EXCEPTION WHEN NO_DATA_FOUND THEN
+                        tmp_k := 0;
+                    END;
+                    END LOOP;
+                    
+                    FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
+                    LOOP 
+                    BEGIN
+                         with 
+                            dat as (
+                                SELECT t.year ,
+                                    t.id,
+                                    FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, year ORDER BY t.date_from desc) AS tmax,
+                                    ct.cob_id,
+                                    tt.end_date 
+                                FROM stroy.cob_title ct 
+                                    LEFT JOIN stroy.title t ON t.title_number = ct.title_number 
+                                    LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1
+                                WHERE t.stage_id =95
+                                    AND t.state_id =3
+                                    AND ct.cob_id = x.cob_id
+                                    AND t.year BETWEEN 2014 and 2021
+                                    AND t.year < y.year
+                            ),
+                            dat1 AS (
+                                SELECT dat.year,
+                                    max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y--,
+                                    --COB_ID,
+                                   -- FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
+                                FROM dat
+                                WHERE dat.id=tmax
+                            )
+                            select max(fin_y) INTO tmp_end_year from dat1;
+                    
+                    EXCEPTION WHEN NO_DATA_FOUND THEN
+                        tmp_k := 0;
+                    END;
+                    END LOOP;
+
+                    INSERT INTO extend (id, start_constr, stop_constr, num_lag, delivery_date) 
+                    VALUES (n_extehd_id, min_year, max_year, tmp_k, tmp_end_year);
+                    UPDATE main
+                    SET extend_id = n_extehd_id
+                    WHERE title_number in (SELECT title_number FROM stroy.cob_title WHERE cob_id = x.cob_id)
+                        AND calendar_id = x.calendar_id;
+                    
+                    
+            END LOOP;
+            COMMIT;
+            SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
+            INSERT INTO log (id, msg_type, metod, msg) 
+            VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+            DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+            COMMIT;
+END GET_EXTEND;
 /* create PBI_MAIN */
 PROCEDURE GET_MAIN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -296,8 +498,8 @@ CURSOR title is
         FROM   stroy.title t
             INNER JOIN calendar c ON c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
         WHERE  
-            c.year < EXTRACT(year FROM sysdate)
-            AND t.stage_id = 95
+            --c.year < EXTRACT(year FROM sysdate)
+            t.stage_id = 95
 -- есть сомнения  в значении = 3            
             --AND t.state_id = 3 
             --AND date_to IS NULL
@@ -425,6 +627,10 @@ BEGIN
     GET_TITLE;
 /* create GET_FINANCING_SOURCE */
     GET_FINANCING_SOURCE;
+/* create GET_EXTEND */
+    GET_EXTEND;
+/* create GET_POWER */
+    GET_POWER;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
     COMMIT;
 END RUN;

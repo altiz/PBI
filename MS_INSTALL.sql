@@ -1,0 +1,34 @@
+DROP TABLE StroyInvest.dbo.CALENDAR;
+CREATE TABLE StroyInvest.dbo.CALENDAR (
+	ID int NULL,
+	[YEAR] int NULL,
+	QUARTER int NULL,
+	[MONTH] int NULL,
+	[DAY] int NULL
+);
+
+
+DROP TABLE StroyInvest.dbo.MAIN;
+CREATE TABLE StroyInvest.dbo.MAIN (
+	ID int NOT NULL,
+	CALENDAR_ID int NULL,
+	TITLE_NUMBER int NULL,
+	MS_ID int NULL,
+	ANNEX_ID int NULL,
+	POWER_ID int NULL,
+	TITLE_STATE_ID int NULL,
+	VALUE_FULL float NULL,
+	VALUE_DONE float NULL,
+	VALUE_CURR float NULL
+);
+
+DROP TABLE StroyInvest.dbo.TITLE;
+CREATE TABLE StroyInvest.dbo.TITLE (
+	TITLE_NUMBER int NOT NULL,
+	TITLE_TYPE_ID int NULL,
+	COB_ID int NULL,
+	NAME varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+	ADDRESS varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+	START_YEAR int NULL,
+	FINISH_YEAR int NULL
+);
