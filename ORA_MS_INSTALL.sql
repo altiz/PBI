@@ -36,8 +36,8 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
 		DELETE FROM "dbo"."MAIN"@POWERBI;
 		COMMIT;
     
-		FOR v_rec IN (SELECT  id,    calendar_id,    title_id,    ms_id,    annex_id,    power_id,    title_state_id, to_char(value_full + dbms_random.value,'0999999999.99'), 
-			to_char(value_done + dbms_random.value,'0999999999.99'), to_char(value_curr + dbms_random.value,'0999999999.99') 
+		FOR v_rec IN (SELECT  id,    calendar_id,    title_number,  financing_source_id,  msk_gov_program_id,    extend_id,    power_id,    title_state_id, to_char(value_full,'0999999999.999999'), 
+			to_char(value_done,'0999999999.999999'), to_char(value_curr,'0999999999.999999') 
 			FROM  pbi.main)
 		LOOP
 			INSERT INTO  "dbo"."MAIN"@POWERBI VALUES v_rec;      
@@ -64,7 +64,6 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
 			INSERT INTO  "dbo"."TITLE"@POWERBI VALUES v_rec;
 			COMMIT;
 		END LOOP;
-		DBMS_OUTPUT.PUT_LINE( 'INSERT PBI.TITLE');
 
         SELECT COUNT(*) INTO tmp_count FROM "dbo"."TITLE"@POWERBI;
         INSERT INTO log (id, msg_type, metod, msg) 
@@ -75,7 +74,226 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
         INSERT INTO log (id, msg_type, metod, msg) 
         VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.TITLE: ' || to_char(test_count) || ' (ROWS)');
 		COMMIT;
+        
+        -- INSERT MS SQL EXTEND
+		DELETE FROM "dbo"."EXTEND"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.EXTEND) 
+		LOOP
+			INSERT INTO  "dbo"."EXTEND"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."EXTEND"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."EXTEND"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.EXTEND: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;
+ 
+         -- INSERT MS SQL POWER
+		DELETE FROM "dbo"."POWER"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.POWER) 
+		LOOP
+			INSERT INTO  "dbo"."POWER"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."POWER"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.POWER: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."POWER"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.POWER: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;       
 	
+        -- INSERT MS SQL FINANCING_SOURCE
+		DELETE FROM "dbo"."FINANCING_SOURCE"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.FINANCING_SOURCE) 
+		LOOP
+			INSERT INTO  "dbo"."FINANCING_SOURCE"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."FINANCING_SOURCE"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.FINANCING_SOURCE: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."FINANCING_SOURCE"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.FINANCING_SOURCE: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+        
+        -- INSERT MS SQL RESULT_AIP
+		DELETE FROM "dbo"."RESULT_AIP"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.RESULT_AIP) 
+		LOOP
+			INSERT INTO  "dbo"."RESULT_AIP"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."RESULT_AIP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.RESULT_AIP: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."RESULT_AIP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.RESULT_AIP: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;      
+            
+        -- INSERT MS SQL MSK_GOV_PROGRAM
+		DELETE FROM "dbo"."MSK_GOV_PROGRAM"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.MSK_GOV_PROGRAM) 
+		LOOP
+			INSERT INTO  "dbo"."MSK_GOV_PROGRAM"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."MSK_GOV_PROGRAM"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MSK_GOV_PROGRAM: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."MSK_GOV_PROGRAM"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MSK_GOV_PROGRAM: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+        
+        -- INSERT MS SQL GP
+		DELETE FROM "dbo"."GP"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.GP) 
+		LOOP
+			INSERT INTO  "dbo"."GP"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."GP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.GP: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."GP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.GP: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+		
+		-- INSERT MS SQL GP_LF
+		DELETE FROM "dbo"."GP_LF"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.GP_LF) 
+		LOOP
+			INSERT INTO  "dbo"."GP_LF"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."GP_LF"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.GP_LF: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."GP_LF"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.GP_LF: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT; 
+        
+        -- INSERT MS SQL PP
+		DELETE FROM "dbo"."PP"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.PP) 
+		LOOP
+			INSERT INTO  "dbo"."PP"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."PP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.PP: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."PP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.PP: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+        
+		-- INSERT MS SQL PREGP
+		DELETE FROM "dbo"."PREGP"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.PREGP) 
+		LOOP
+			INSERT INTO  "dbo"."PREGP"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."PREGP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.PREGP: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."PREGP"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.PREGP: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+		
+		-- INSERT MS SQL MAIN_PP_LINK
+		DELETE FROM "dbo"."MAIN_PP_LINK"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.MAIN_PP_LINK) 
+		LOOP
+			INSERT INTO  "dbo"."MAIN_PP_LINK"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."MAIN_PP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."MAIN_PP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MAIN_PP_LINK: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+		
+		-- INSERT MS SQL MAIN_PREGP_LINK
+		DELETE FROM "dbo"."COB_PREGP_LINK"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.COB_PREGP_LINK) 
+		LOOP
+			INSERT INTO  "dbo"."COB_PREGP_LINK"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."COB_PREGP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_PREGP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."COB_PREGP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_PREGP_LINK: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
 	END RUN;
 	
 END GET_MSSQL_2V;

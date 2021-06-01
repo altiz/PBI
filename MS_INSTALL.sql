@@ -7,14 +7,14 @@ CREATE TABLE StroyInvest.dbo.CALENDAR (
 	[DAY] int NULL
 );
 
-
 DROP TABLE StroyInvest.dbo.MAIN;
 CREATE TABLE StroyInvest.dbo.MAIN (
 	ID int NOT NULL,
 	CALENDAR_ID int NULL,
 	TITLE_NUMBER int NULL,
-	MS_ID int NULL,
-	ANNEX_ID int NULL,
+	FINANCING_SOURCE_ID int NULL,
+	MSK_GOV_PROGRAM_ID int NULL,
+	EXTEND_ID int NULL,
 	POWER_ID int NULL,
 	TITLE_STATE_ID int NULL,
 	VALUE_FULL float NULL,
@@ -32,3 +32,90 @@ CREATE TABLE StroyInvest.dbo.TITLE (
 	START_YEAR int NULL,
 	FINISH_YEAR int NULL
 );
+
+DROP TABLE StroyInvest.dbo.EXTEND;
+CREATE TABLE StroyInvest.dbo.EXTEND  (
+    ID int NOT NULL, 
+    START_CONSTR int NULL, 
+    STOP_CONSTR int NULL, 
+    NUM_LAG int NULL, 
+    DELIVERY_DATE int NULL, 
+    YEAR_DP int NULL
+);
+
+DROP TABLE StroyInvest.dbo.POWER;    
+CREATE TABLE StroyInvest.dbo.POWER
+   (ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    RESULT_AIP_ID         int NULL
+    );
+    
+DROP TABLE StroyInvest.dbo.FINANCING_SOURCE;    
+CREATE TABLE StroyInvest.dbo.FINANCING_SOURCE
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+
+DROP TABLE StroyInvest.dbo.RESULT_AIP;    
+CREATE TABLE StroyInvest.dbo.RESULT_AIP
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    UNIT    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+
+DROP TABLE StroyInvest.dbo.MSK_GOV_PROGRAM;    
+CREATE TABLE StroyInvest.dbo.MSK_GOV_PROGRAM
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+
+DROP TABLE StroyInvest.dbo.GP;    
+CREATE TABLE StroyInvest.dbo.GP
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+
+DROP TABLE StroyInvest.dbo.GP_LF;    
+CREATE TABLE StroyInvest.dbo.GP_LF
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+    
+DROP TABLE StroyInvest.dbo.PP;    
+CREATE TABLE StroyInvest.dbo.PP
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    GP_LF_ID    int NULL, 
+    );
+	
+DROP TABLE StroyInvest.dbo.PREGP;    
+CREATE TABLE StroyInvest.dbo.PREGP
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    GP_ID    int NULL, 
+    );
+	
+DROP TABLE StroyInvest.dbo.COB_PREGP_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_PREGP_LINK
+    (
+    COB_ID    int NOT NULL, 
+    PREGP_ID    int NULL, 
+    );
+
+DROP TABLE StroyInvest.dbo.MAIN_PP_LINK;    
+CREATE TABLE StroyInvest.dbo.MAIN_PP_LINK
+    (
+    MAIN_ID    int NOT NULL, 
+    PP_ID    int NULL, 
+    );
+
+
+    
+    
