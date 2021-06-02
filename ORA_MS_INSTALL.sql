@@ -379,7 +379,8 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
 		DELETE FROM "dbo"."COB"@POWERBI;
 		COMMIT;
     
-		FOR v_rec IN (SELECT  * FROM  pbi.COB) 
+		FOR v_rec IN (SELECT      id,   name,   address,  to_char(center_latitude,'099.99999'), to_char(center_longitude,'099.99999'),  
+        cob_type_id,    start_year,    finish_year FROM  pbi.COB) 
 		LOOP
 			INSERT INTO  "dbo"."COB"@POWERBI VALUES v_rec;
 			COMMIT;
