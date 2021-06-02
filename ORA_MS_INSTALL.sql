@@ -374,6 +374,26 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
         INSERT INTO log (id, msg_type, metod, msg) 
         VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_DISTR_LINK: ' || to_char(test_count) || ' (ROWS)');
 		COMMIT;
+
+		-- INSERT MS SQL COB
+		DELETE FROM "dbo"."COB"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.COB) 
+		LOOP
+			INSERT INTO  "dbo"."COB"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."COB"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."COB"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;
 	END RUN;
 	
 END GET_MSSQL_2V;

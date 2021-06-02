@@ -138,5 +138,18 @@ CREATE TABLE StroyInvest.dbo.COB_DISTR_LINK
     DISTR_ID    int NULL, 
     );
 
-    
+DROP TABLE StroyInvest.dbo.COB;    
+CREATE TABLE StroyInvest.dbo.COB
+    (
+    ID   int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    ADDRESS                varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    CENTER_LATITUDE        int NULL, 
+    CENTER_LONGITUDE       int NULL,
+    COB_TYPE_ID        int NULL, 
+    START_YEAR        int NULL,
+    FINISH_YEAR        int NULL,
+    );  
+
+
     
