@@ -294,6 +294,86 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
         INSERT INTO log (id, msg_type, metod, msg) 
         VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_PREGP_LINK: ' || to_char(test_count) || ' (ROWS)');
 		COMMIT;  
+        
+        -- INSERT MS SQL MAIN_PP_LINK
+		DELETE FROM "dbo"."MAIN_PP_LINK"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.MAIN_PP_LINK) 
+		LOOP
+			INSERT INTO  "dbo"."MAIN_PP_LINK"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."MAIN_PP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."MAIN_PP_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MAIN_PP_LINK: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+		
+		-- INSERT MS SQL AO
+		DELETE FROM "dbo"."AO"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.AO) 
+		LOOP
+			INSERT INTO  "dbo"."AO"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."AO"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.AO: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."AO"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.AO: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;  
+		
+		-- INSERT MS SQL DISTR
+		DELETE FROM "dbo"."DISTR"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.DISTR) 
+		LOOP
+			INSERT INTO  "dbo"."DISTR"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."DISTR"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.DISTR: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."DISTR"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.DISTR: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT; 
+        
+		-- INSERT MS SQL COB_DISTR_LINK
+		DELETE FROM "dbo"."COB_DISTR_LINK"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.COB_DISTR_LINK) 
+		LOOP
+			INSERT INTO  "dbo"."COB_DISTR_LINK"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."COB_DISTR_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_DISTR_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."COB_DISTR_LINK"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_DISTR_LINK: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;
 	END RUN;
 	
 END GET_MSSQL_2V;

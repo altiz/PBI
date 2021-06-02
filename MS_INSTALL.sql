@@ -116,6 +116,27 @@ CREATE TABLE StroyInvest.dbo.MAIN_PP_LINK
     PP_ID    int NULL, 
     );
 
+DROP TABLE StroyInvest.dbo.AO;    
+CREATE TABLE StroyInvest.dbo.AO
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    );
+
+DROP TABLE StroyInvest.dbo.DISTR;    
+CREATE TABLE StroyInvest.dbo.DISTR
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    AO_ID    int NULL, 
+    );
+
+DROP TABLE StroyInvest.dbo.COB_DISTR_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_DISTR_LINK
+    (
+    COB_ID    int NULL, 
+    DISTR_ID    int NULL, 
+    );
 
     
     

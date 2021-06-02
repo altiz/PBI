@@ -605,9 +605,9 @@ BEGIN
 	JOIN stroy.STATE_PROGRAM sp ON bc.STATE_PROGRAM_ID = sp.ID 
 	JOIN stroy.STATE_PROGRAM sp2 ON sp.PARENT_ID = sp2.id
 	JOIN stroy.STATE_PROGRAM sp3 ON sp2.PARENT_ID = sp3.id
-	WHERE 1=1
-	  AND t."YEAR" >=2014
-	  AND t.STAGE_ID =95;
+	WHERE 
+        t."YEAR" >=2014
+	    AND t.STAGE_ID =95;
     
 	INSERT INTO main_pp_link (main_id, pp_id) 
 	SELECT id, 1 FROM main WHERE power_id is not null
@@ -993,7 +993,7 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PREGP' ;
     FOR x IN ( SELECT distinct cc.id, '('||cc.code ||') '|| cc.name as name
                         FROM stroy.costs_classifier cc
-                        INNER JOIN main_pp_link mpl ON mpl.pp_id = cc.id)
+                        INNER JOIN cob_pregp_link mpl ON mpl.pregp_id = cc.id)
     LOOP
         BEGIN
                 SELECT
