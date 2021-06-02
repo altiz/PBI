@@ -583,22 +583,25 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_PP_LINK ' ;
 	
 	INSERT INTO main_pp_link (main_id, pp_id) 
-	WITH dat as
+	WITH
+    dat as
         (
-        SELECT distinct main.id,  
-            FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, t.year ORDER BY t.date_from desc) AS tmax
+        SELECT distinct main.id,  max(t.id) as title_id
+         --   FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, t.year ORDER BY t.date_from desc) AS tmax
         FROM stroy.title t 
             INNER JOIN pbi.main ON t.title_number = main.title_number 
             INNER JOIN pbi.calendar c ON c.id = main.calendar_id   
+ 
         WHERE t.state_id =3 --and t.title_number =43385
             AND  c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
+        GROUP BY main.id
         )
 	SELECT 
 		dat.id main_id,
 		sp2.id pp_id
 	FROM stroy.COB_TITLE ct 
 	JOIN stroy.TITLE t ON ct.TITLE_NUMBER = t.TITLE_NUMBER
-	INNER JOIN dat ON dat.tmax = t.id
+	INNER JOIN dat ON dat.title_id = t.id
 	JOIN stroy.BUILD_INDICATOR bi ON bi.TITLE_ID = t.ID AND bi.BUILD_INDICATOR_TYPE_ID =3
 	JOIN stroy.BUILD_INDICATOR_CLASSIFIER bic ON bic.id = bi.BUILD_INDICATOR_CLASSIFIER_ID
 	JOIN stroy.BUDGET_CLASSIFIER bc ON bc.ID = bic.BUDGET_CLASSIFIER_ID 
@@ -610,7 +613,7 @@ BEGIN
 	    AND t.STAGE_ID =95;
     
 	INSERT INTO main_pp_link (main_id, pp_id) 
-	SELECT id, 1 FROM main WHERE power_id is not null
+	SELECT id, 1 FROM main WHERE power_id is null
 	minus
 	SELECT main_id, 1 FROM main_pp_link;
 	COMMIT;
