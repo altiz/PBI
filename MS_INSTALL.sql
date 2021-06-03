@@ -151,5 +151,18 @@ CREATE TABLE StroyInvest.dbo.COB
     FINISH_YEAR        int NULL,
     );  
 
+DROP TABLE StroyInvest.dbo.TITLE_STATE;    
+CREATE TABLE StroyInvest.dbo.TITLE_STATE
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    );
+
+DROP TABLE StroyInvest.dbo.TITLE_TYPE;    
+CREATE TABLE StroyInvest.dbo.TITLE_TYPE
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    );
 
     
