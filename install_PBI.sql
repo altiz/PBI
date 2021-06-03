@@ -228,7 +228,7 @@ BEGIN
 /* CREATE MSK_GOV_PROGRAM */    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'MSK_GOV_PROGRAM';
-    
+       
     IF tmp_is_objects != 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.MSK_GOV_PROGRAM  CASCADE CONSTRAINTS';
     END IF;
@@ -257,6 +257,36 @@ BEGIN
                                                 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP .NAME IS ''' || '	Название программы ГП' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP .ID IS ''' || 'ID программы правительства ' || '''';
+
+/* CREATE TITLE_STATE */    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TITLE_STATE';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TITLE_STATE  CASCADE CONSTRAINTS';
+    END IF;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TITLE_STATE 
+                                               (ID   NUMBER, 
+                                                NAME                     VARCHAR2(4000 BYTE)
+                                                )';
+                                                
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.TITLE_STATE .NAME IS ''' || '	Название статуса' || '''';
+
+/* CREATE TITLE_TYPE */    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TITLE_TYPE';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TITLE_TYPE  CASCADE CONSTRAINTS';
+    END IF;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TITLE_TYPE 
+                                               (ID   NUMBER, 
+                                                NAME                     VARCHAR2(4000 BYTE)
+                                                )';
+                                                
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.TITLE_TYPE .NAME IS ''' || '	Название типа' || '''';
 
 /* CREATE GP_LF */    
 --------------------------------------------------------------------------------------------------------------    
@@ -488,6 +518,14 @@ PROCEDURE GET_AO;
 
 -- ВСПМОГАТЕЛЬНАЯ
 FUNCTION get_distr(pcod_id in number) RETURN NUMBER;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- загрузка GET_TITLE_TYPE
+PROCEDURE GET_TITLE_TYPE;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- загрузка GET_TITLE_STATE
+PROCEDURE GET_TITLE_STATE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 END GET_PBI_2V;
@@ -1262,6 +1300,39 @@ BEGIN
     COMMIT;
 END GET_GP;
 
+-- загрузка GET_TITLE_TYPE
+PROCEDURE GET_TITLE_TYPE
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+    IS
+    tmp_count number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TITLE_TYPE' ;
+    INSERT INTO pbi.title_type(ID,name) 
+    SELECT id, name FROM stroy.title_type;
+    
+    COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.title_type;    
+    INSERT INTO log (id, msg_type, metod, msg) 
+    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_TITLE_TYPE', 'INSERT PBI.TITLE_TYPE: ' || to_char(tmp_count) || ' (ROWS)');
+    COMMIT;
+END GET_TITLE_TYPE;
+
+-- загрузка GET_TITLE_STATE
+PROCEDURE GET_TITLE_STATE
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+    IS
+    tmp_count number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TITLE_STATE' ;
+    INSERT INTO pbi.title_state(ID,name) 
+    SELECT id, caption FROM stroy.title_state;
+    
+    COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.title_state;    
+    INSERT INTO log (id, msg_type, metod, msg) 
+    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_TITLE_STATE', 'INSERT PBI.TITLE_STATE: ' || to_char(tmp_count) || ' (ROWS)');
+    COMMIT;
+END GET_TITLE_STATE;
 -- загрузка GP
 PROCEDURE GET_GP_LF
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1458,6 +1529,10 @@ BEGIN
     GET_DISTR;
 -- загрузка AO
     GET_AO;
+-- загрузка GET_TITLE_TYPE
+    GET_TITLE_TYPE;
+-- загрузка GET_TITLE_STATE
+    GET_TITLE_STATE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
     
     INSERT INTO gp(id, name)
