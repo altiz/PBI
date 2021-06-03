@@ -572,6 +572,69 @@ BEGIN
 END GET_CALENDAR;
 
 /* create MAIN_PP_LINK */
+PROCEDURE GET_MAIN_PP_LINK_old
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+as
+    new_date date := to_date('01.12.2013','dd.mm.yyyy');
+    n_months number := 96;
+    tmp_count number;
+     tmp number;
+     v_pp NUMBER;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_PP_LINK ' ;
+	
+    FOR x IN 
+        (
+            WITH dat AS
+                (
+                SELECT distinct main.id main_id,  max(t.id) as title_id
+                FROM stroy.title t 
+                    INNER JOIN pbi.main ON t.title_number = main.title_number 
+                    INNER JOIN pbi.calendar c ON c.id = main.calendar_id                   
+                WHERE-- t.state_id =3 --and t.title_number =43385
+                      c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
+                      AND t.YEAR >=2014
+                     AND t.STAGE_ID =95
+                GROUP BY main.id
+                )    
+                SELECT 		
+                    bc.state_program_id, dat.main_id
+                FROM stroy.cob_title ct 
+                JOIN stroy.title t ON ct.title_number = t.title_number
+                JOIN dat ON t.id = dat.title_id
+                JOIN stroy.build_indicator bi ON bi.title_id = t.id AND bi.build_indicator_type_id =3
+                JOIN stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
+                JOIN stroy.budget_classifier bc ON bc.id = bic.budget_classifier_id
+                WHERE 
+                    t.YEAR >=2014
+                    AND t.STAGE_ID =95
+        )
+        LOOP
+            BEGIN
+                SELECT MAX(cc.id) INTO v_pp
+                FROM  stroy.state_program cc
+                WHERE parent_id IS NOT NULL
+                START WITH id = x.state_program_id
+                CONNECT BY NOCYCLE PRIOR cc.parent_id = cc.id;  
+                
+                INSERT INTO main_pp_link (main_id, pp_id) 
+                VALUES(x.main_id, v_pp);
+            EXCEPTION WHEN OTHERS THEN
+                null;
+            END;
+        END LOOP;
+    COMMIT;
+	INSERT INTO main_pp_link (main_id, pp_id) 
+	SELECT id, 1 FROM main WHERE power_id is null
+	minus
+	SELECT main_id, 1 FROM main_pp_link;
+	COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.main_pp_link;
+    INSERT INTO log (id, msg_type, metod, msg) 
+    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+END GET_MAIN_PP_LINK_OLD;
+
+/* create MAIN_PP_LINK */
 PROCEDURE GET_MAIN_PP_LINK
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 as
@@ -594,6 +657,8 @@ BEGIN
  
         WHERE t.state_id =3 --and t.title_number =43385
             AND  c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
+            AND t.YEAR >=2014
+                     AND t.STAGE_ID =95
         GROUP BY main.id
         )
 	SELECT 
@@ -961,6 +1026,17 @@ IS
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PP' ;
 	INSERT INTO pp (id, name, gp_lf_id) 
+    SELECT DISTINCT
+	  sp.id,
+	  '('||sp.VALUE ||') '||sp.NAME  AS PP,
+      CASE 
+		WHEN sp.parent_id IS NULL THEN sp.id 
+		ELSE sp.parent_id 
+	  END AS GP_LF
+FROM
+    main_pp_link	 ml
+	JOIN stroy.state_program sp ON sp.id = ml.pp_id ;
+    /*
 	SELECT DISTINCT
 	  sp2.id,
 	  '('||sp2.VALUE ||') '||sp2.NAME  AS PP,
@@ -979,11 +1055,11 @@ BEGIN
 	LEFT JOIN stroy.state_program sp4 ON sp3.SOURCE_ID = sp4.id
 	WHERE 1=1
 	  AND t."YEAR" >=2014
-	  AND t.STAGE_ID =95;
+	  AND t.STAGE_ID =95;*/
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.pp;
     INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.PP', 'INSERT PBI.PP: ' || to_char(tmp_count) || ' (ROWS)');
+    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2VGET_PP', 'INSERT PBI.PP: ' || to_char(tmp_count) || ' (ROWS)');
 	END GET_PP;
 
 /* create PREGP */
