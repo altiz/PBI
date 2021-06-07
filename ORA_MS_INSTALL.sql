@@ -1,11 +1,11 @@
-create or replace PACKAGE GET_MSSQL_2v AS 
+create or replace PACKAGE PBI.GET_MSSQL_2v AS 
 
 PROCEDURE run;
 
 END GET_MSSQL_2v;
 /
 
-create or replace PACKAGE BODY GET_MSSQL_2V AS
+create or replace PACKAGE BODY PBI.GET_MSSQL_2V AS
 
 	PROCEDURE run 
 	AS
@@ -36,8 +36,8 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
 		DELETE FROM "dbo"."MAIN"@POWERBI;
 		COMMIT;
     
-		FOR v_rec IN (SELECT  id,    calendar_id,    title_number,  financing_source_id,  msk_gov_program_id,    extend_id,    power_id,    title_state_id, to_char(value_full,'0999999999.999999'), 
-			to_char(value_done,'0999999999.999999'), to_char(value_curr,'0999999999.999999') 
+		FOR v_rec IN (SELECT  id,    calendar_id,    title_number,  financing_source_id,  msk_gov_program_id,    extend_id,    power_id,    title_state_id, to_char(value_full,'0999999999999.999999'), 
+			to_char(value_done,'0999999999999.999999'), to_char(value_curr,'0999999999999.999999') 
 			FROM  pbi.main)
 		LOOP
 			INSERT INTO  "dbo"."MAIN"@POWERBI VALUES v_rec;      
@@ -380,7 +380,7 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
 		COMMIT;
     
 		FOR v_rec IN (SELECT      id,   name,   address,  to_char(center_latitude,'099.99999'), to_char(center_longitude,'099.99999'),  
-        cob_type_id,    start_year,    finish_year FROM  pbi.COB) 
+        cob_type_id,    start_year,    finish_year, new_year FROM  pbi.COB) 
 		LOOP
 			INSERT INTO  "dbo"."COB"@POWERBI VALUES v_rec;
 			COMMIT;
@@ -434,6 +434,26 @@ create or replace PACKAGE BODY GET_MSSQL_2V AS
         SELECT COUNT(*) INTO test_count FROM  "dbo"."TITLE_TYPE"@POWERBI;
         INSERT INTO log (id, msg_type, metod, msg) 
         VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.TITLE_TYPE: ' || to_char(test_count) || ' (ROWS)');
+		COMMIT;
+		
+		-- INSERT MS SQL COB_TYPE
+		DELETE FROM "dbo"."COB_TYPE"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.COB_TYPE) 
+		LOOP
+			INSERT INTO  "dbo"."COB_TYPE"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."COB_TYPE"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_TYPE: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+        SELECT COUNT(*) INTO test_count FROM  "dbo"."COB_TYPE"@POWERBI;
+        INSERT INTO log (id, msg_type, metod, msg) 
+        VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_TYPE: ' || to_char(test_count) || ' (ROWS)');
 		COMMIT;
 	END RUN;
 	

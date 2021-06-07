@@ -103,7 +103,8 @@ BEGIN
                                                 CENTER_LONGITUDE       NUMBER,
                                                 COB_TYPE_ID        NUMBER, 
                                                 START_YEAR        NUMBER,
-												FINISH_YEAR        NUMBER
+												FINISH_YEAR        NUMBER,
+                                                NEW_YEAR NUMBER
                                                 )';
                                                 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.ID IS ''' || 'ID объекта' || '''';
@@ -114,6 +115,7 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.START_YEAR IS ''' || 'Год рождения объекта' || '''';  
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.FINISH_YEAR IS ''' || 'Год реализации объекта' || ''''; 
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.NEW_YEAR IS ''' || 'Год, в котором объект стал новым' || ''''; 
   
 /* CREATE CALENDAR*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -365,6 +367,23 @@ BEGIN
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.FINANCING_SOURCE.NAME IS ''' || 'Наименование источника финансирования.' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.FINANCING_SOURCE  IS ''' || 'Источники финансирования' || '''';
 
+/* CREATE COB_TYPE*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'COB_TYPE';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.COB_TYPE CASCADE CONSTRAINTS';
+    END IF; 
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.COB_TYPE
+                                                (
+                                                    ID NUMBER(28,0) NOT NULL ENABLE, 
+                                                    NAME VARCHAR2(256 BYTE) NOT NULL ENABLE
+                                                )';
+
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_TYPE.ID IS ''' || 'Первичный ключ таблицы.' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_TYPE.NAME IS ''' || 'Наименование типа обьекта' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.COB_TYPE  IS ''' || 'Тип обьекта' || '''';
+
 /* CREATE PP*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'PP';
@@ -473,7 +492,7 @@ PROCEDURE GET_FINANCING_SOURCE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* create GET_EXTEND */
-PROCEDURE GET_EXTEND;
+PROCEDURE GET_EXTEND(cur_thread in number, all_thread in number);
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* RUN */
@@ -764,14 +783,14 @@ IS
     tmp_count number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TITLE ' ;
-    INSERT INTO title (title_number, title_type_id, cob_id,name,  address, start_year, finish_year) 
+    INSERT INTO title (title_number, title_type_id, cob_id,name,  start_year, finish_year) 
     SELECT DISTINCT t.title_number,
         (SELECT DISTINCT FIRST_VALUE(tt.title_type_id) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from) FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as title_type_id,
         cc.cob_id,
         (SELECT DISTINCT FIRST_VALUE(tt.title_name) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from DESC) FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) AS name,
-        (SELECT st.title_address FROM stroy.title st,
+     /*   (SELECT st.title_address FROM stroy.title st,
                 (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
                 FROM stroy.title stt
                 WHERE
@@ -783,7 +802,7 @@ BEGIN
                  st.id = dat.id
                  AND st.title_number = t.title_number
                  AND dat.rn = 1
-        ) title_address, 
+        ) title_address, */
         (SELECT DISTINCT FIRST_VALUE(tt.year) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from) FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as start_year,
         (SELECT MAX(tt.year) FROM stroy.title tt
@@ -793,8 +812,30 @@ BEGIN
         INNER JOIN stroy.cob_card cc ON cc.cob_id = ct.cob_id    
     WHERE  
         t.stage_id = 95
-        AND t.state_id = 3
-        AND t.title_number in (43385, 154796, 155177, 109157, 59048, 250866, 700858, 156645,156646,700181,700182,700987,700988,700989,700990,700991,700992,700993,700994,700995,701417,702949,702950,702951,702952);
+        AND t.state_id = 3;
+        --AND t.title_number in (43385, 154796, 155177, 109157, 59048, 250866, 700858, 156645,156646,700181,700182,700987,700988,700989,700990,700991,700992,700993,700994,700995,701417,702949,702950,702951,702952);
+       begin
+        FOR x in (
+                SELECT st.title_address, t.title_number
+                FROM stroy.title st,
+                        pbi.title t ,
+                        (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
+                        FROM stroy.title stt
+                        WHERE
+                            stt.year >= 2014
+                            AND stt.stage_id = 95
+                            AND stt.state_id = 3
+                        ) dat                
+                    WHERE   
+                         st.id = dat.id
+                         and st.title_number = t.title_number
+                         AND dat.rn = 1)
+        loop
+            update pbi.title
+            set address = x.title_address
+            where title_number = x.title_number;
+        end loop;
+        end;
         COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title;
     INSERT INTO log (id, msg_type, metod, msg) 
@@ -856,20 +897,23 @@ BEGIN
     FOR x IN 
     (
          SELECT ct.cob_id, 
-            max(EXTRACT ( year from t.date_to)) last_dt, 
-            min(EXTRACT ( year from t.date_from)) first_dt
+            max(t.year) last_dt, 
+            min(t.year) first_dt,
+            (select new_year from stroy.mv_cob_kind mck WHERE  mck.id = ct.cob_id) as NEW_YEAR
         FROM
             stroy.title t
             INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number
         WHERE
             t.stage_id = 95
             AND t.state_id = 3
+            AND t.year >= 2014
         group by ct.cob_id
     )
     LOOP
         UPDATE pbi.cob
         SET START_YEAR = x.first_dt, 
-            FINISH_YEAR = x.last_dt
+            FINISH_YEAR = x.last_dt,
+            NEW_YEAR = x.NEW_YEAR
         WHERE id = x.cob_id;
     END LOOP;
     COMMIT;
@@ -1132,7 +1176,7 @@ BEGIN
 END GET_PREGP;
 
 /* create GET_EXTEND */
-PROCEDURE GET_EXTEND
+PROCEDURE GET_EXTEND(cur_thread in number, all_thread in number)
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
     min_year NUMBER;
@@ -1144,12 +1188,13 @@ IS
     tmp_cob number;
     tmp_end_year number;
     tmp_count NUMBER;
+    com_ number := 0;
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.EXTEND ' ;
-    FOR x IN (SELECT  m.calendar_id,
-                        (SELECT cct.cob_id FROM stroy.cob_title cct WHERE cct.title_number = m.title_number) cob_id
-                      FROM pbi.main m ORDER BY id)
+    FOR x IN (SELECT  m.calendar_id, cct.cob_id FROM pbi.main m
+                        inner join stroy.cob_title cct ON  cct.title_number = m.title_number
+                        where mod(cct.cob_id, all_thread) = cur_thread)
                 LOOP
+                    com_ := com_ + 1;
                     BEGIN
                         SELECT
                             to_number(to_char(min(tt.start_date),'YYYY')), to_number(to_char(max(tt.end_date),'YYYY')) into min_year, max_year
@@ -1157,16 +1202,11 @@ BEGIN
                             INNER JOIN stroy.title_term  tt on t.id=tt.title_id
                             INNER JOIN pbi.calendar c ON c.id = x.calendar_id
                             INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number
-                            --LEFT JOIN stroy.build_indicator bi ON bi.title_id = t.id
-                            --LEFT JOIN stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
-                        WHERE -- t.delete_date is null
+                        WHERE 
                              tt.title_term_type_id = 1
                             AND t.stage_id = 95
                             AND t.title_type_id in (1, 2, 3)
                             AND t.year >= 2014
-                            --AND bic.power_id = NVL(x.power_id, bic.power_id)
-                            --AND bic.financing_source_id = NVL(x.financing_source_id, bic.financing_source_id)
-                            --AND t.state_id = x.title_state_id
                             AND ct.cob_id = x.cob_id
                             AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'));
                         n_extehd_id :=  pbi.seq_extend.nextval;
@@ -1267,6 +1307,11 @@ BEGIN
                     SET extend_id = n_extehd_id
                     WHERE title_number in (SELECT title_number FROM stroy.cob_title WHERE cob_id = x.cob_id)
                         AND calendar_id = x.calendar_id;
+                        
+                    if com_ = 100 then 
+                        com_ := 0;
+                        commit;
+                    end if;
                     
                     
             END LOOP;
@@ -1286,11 +1331,15 @@ PROCEDURE GET_GP
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.GP' ;
     INSERT INTO pbi.gp(ID,name) 
-    SELECT DISTINCT stt.id, '('||stt.VALUE ||') '||stt.NAME 
+    select  DISTINCT cc.id, '('||stt.VALUE ||') '||stt.NAME 
+    from pregp p 
+    inner join stroy.costs_classifier cc on p.gp_id = cc.id
+    INNER JOIN stroy.state_program stt ON cc.state_program_id = stt.id;
+/*    SELECT DISTINCT stt.id, '('||stt.VALUE ||') '||stt.NAME 
     FROM stroy.costs_classifier cc
         INNER JOIN stroy.state_program stt ON cc.state_program_id = stt.id
     WHERE cc.state_program_id IS NOT NULL 
-        AND cc.costs_classifier_id IS NULL;
+        AND cc.costs_classifier_id IS NULL;*/
 --    INSERT INTO pbi.gp(ID,name)
  --   SELECT cct.id cost_id, '('||cct.VALUE ||') '||cct.NAME FROM  stroy.costs_classifier cct where id in (2890, 2893, 3093);
     COMMIT;
@@ -1308,7 +1357,13 @@ PROCEDURE GET_TITLE_TYPE
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TITLE_TYPE' ;
     INSERT INTO pbi.title_type(ID,name) 
-    SELECT id, name FROM stroy.title_type;
+    VALUES(1, 'СМР');
+	
+	INSERT INTO pbi.title_type(ID,name) 
+    VALUES(2, 'СМР');
+	
+	INSERT INTO pbi.title_type(ID,name) 
+    VALUES(3, 'ПИР');
     
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title_type;    
@@ -1374,7 +1429,7 @@ CURSOR title is
             --AND t.state_id = 3 
             --AND date_to IS NULL
             --AND t.id = 1446621 
-            AND TITLE_NUMBER in (43385, 154796, 155177, 109157, 59048, 250866, 700858)
+           -- AND TITLE_NUMBER in (43385, 154796, 155177, 109157, 59048, 250866, 700858)
         ),
     dat2 AS
         (
@@ -1478,6 +1533,11 @@ BEGIN
             VALUES (pbi.seq_main.NEXTVAL, x.calendar_id, x.title_number, x.financing_source_id,  null, x.power_id, x.title_state_id, x.full, x.done, x.curr, x.ms);
         END IF;
     END LOOP;    
+    
+    UPDATE main
+    SET financing_source_id = 0
+    WHERE financing_source_id is null;
+    
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.main;
     INSERT INTO log (id, msg_type, metod, msg) 
@@ -1504,19 +1564,20 @@ BEGIN
 /* create GET_FINANCING_SOURCE */
     GET_FINANCING_SOURCE;
 /* create GET_EXTEND */
-    GET_EXTEND;
+ --   GET_EXTEND;
+     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.EXTEND ' ;
 /* create GET_POWER */
     GET_POWER;
 /* create RESULT_AIP */
     GET_RESULT_AIP;
-/* create PBI_GP */    
-    GET_GP;
-/* create GP_LF */    
-    GET_GP_LF;
 /* create PP */    
     GET_PP;
 /* create PREGP */    
     GET_PREGP;
+/* create PBI_GP */    
+    GET_GP;
+/* create GP_LF */    
+    GET_GP_LF;
 /* create MSK_GOV_PROGRAM */
     GET_MSK_GOV_PROGRAM;
 /* create COB_PREGP_LINK */
@@ -1543,12 +1604,29 @@ BEGIN
 
     INSERT INTO pp(id, name, gp_lf_id)
     VALUES(1, 'Внебюжетное финансирование', 1);
+    
+    UPDATE pbi.cob_distr_link
+    SET distr_id = 0
+    WHERE distr_id is null;
+
+    INSERT INTO pbi.distr ( id, name, ao_id)
+    VALUES (0,  'Район не указан',  0);
+
+    INSERT INTO pbi.AO ( id, name)
+    VALUES (0,  'АО не указан');
+    
+    INSERT INTO financing_source (id, name) 
+    VALUES(0, 'Мощности');
 	
 	DELETE FROM FINANCING_SOURCE fs
 	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.FINANCING_SOURCE_ID = fs.id);
     
     DELETE FROM extend fs
 	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.extend_id = fs.id);
+    
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_TYPE ' ;
+    INSERT INTO PBI.COB_TYPE 
+    SELECT id, name from STROY.COB_TYPE;
 
 
     

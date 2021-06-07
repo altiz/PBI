@@ -149,6 +149,7 @@ CREATE TABLE StroyInvest.dbo.COB
     COB_TYPE_ID        int NULL, 
     START_YEAR        int NULL,
     FINISH_YEAR        int NULL,
+    NEW_YEAR    int NULL,
     );  
 
 DROP TABLE StroyInvest.dbo.TITLE_STATE;    
@@ -160,6 +161,13 @@ CREATE TABLE StroyInvest.dbo.TITLE_STATE
 
 DROP TABLE StroyInvest.dbo.TITLE_TYPE;    
 CREATE TABLE StroyInvest.dbo.TITLE_TYPE
+    (
+    ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
+    );
+	
+DROP TABLE StroyInvest.dbo.COB_TYPE;    
+CREATE TABLE StroyInvest.dbo.COB_TYPE
     (
     ID    int NOT NULL, 
     NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
