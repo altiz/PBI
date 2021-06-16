@@ -2,35 +2,9 @@ DECLARE
     tmp_current_user varchar2(64);
     tmp_is_objects number;
 BEGIN
+   
     SELECT username INTO tmp_current_user FROM user_users;
     
-/* CREATE LOG*/    
---------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'LOG';
-    
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.LOG CASCADE CONSTRAINTS';
-    END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.LOG  (
-                                                ID NUMBER(10,0) NOT NULL ENABLE, 
-                                                MSG_TYPE VARCHAR2(20 BYTE), 
-                                                DT DATE DEFAULT sysdate, 
-                                                METOD VARCHAR2(64 BYTE), 
-                                                MSG VARCHAR2(4000 BYTE), 
-                                                CONSTRAINT LOG_PK PRIMARY KEY (ID))
-                                                TABLESPACE USERS';
-                                                
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.LOG.MSG_TYPE IS ''' || 'Тип сообщения' || '''';
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.LOG.DT IS ''' || 'дата/время' || '''';
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.LOG.METOD IS ''' || 'вызываемый метод' || '''';
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.LOG.MSG IS ''' || 'сообщение' || '''';
-   
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_LOG';
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_LOG';
-    END IF; 
-   EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_LOG  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE' ;
- 
  /* CREATE EXTEND*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'EXTEND';
@@ -44,15 +18,16 @@ BEGIN
                                                 STOP_CONSTR NUMBER, 
                                                 NUM_LAG NUMBER, 
                                                 DELIVERY_DATE NUMBER, 
-                                                YEAR_DP NUMBER,
-                                                CONSTRAINT EXTEND_PK PRIMARY KEY (ID))
+                                                COB_TYPE_ID        NUMBER
+                                                )
                                                 TABLESPACE USERS';
                                                 
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.START_CONSTR IS ''' || 'Год начала строительства' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.STOP_CONSTR IS ''' || 'Год окончания строительства' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.NUM_LAG IS ''' || 'Количество переносов сдачи объекта' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.DELIVERY_DATE IS ''' || 'Год сдачи объекта' || '''';
-    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.YEAR_DP IS ''' || 'Год полной поставки мощностей' || '''';
+ --   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.YEAR_DP IS ''' || 'Год полной поставки мощностей' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_EXTEND';
     IF tmp_is_objects != 0 THEN
@@ -101,9 +76,9 @@ BEGIN
                                                 ADDRESS                VARCHAR2(4000 BYTE), 
                                                 CENTER_LATITUDE        NUMBER, 
                                                 CENTER_LONGITUDE       NUMBER,
-                                                COB_TYPE_ID        NUMBER, 
-                                                START_YEAR        NUMBER,
-												FINISH_YEAR        NUMBER,
+                                                --COB_TYPE_ID        NUMBER, 
+                                                --START_YEAR        NUMBER,
+												--FINISH_YEAR        NUMBER,
                                                 NEW_YEAR NUMBER
                                                 )';
                                                 
@@ -112,9 +87,9 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.ADDRESS IS ''' || 'Адрес объекта' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.CENTER_LATITUDE IS ''' || 'Координата широты' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.CENTER_LONGITUDE IS ''' || 'Координата долготы' || '''';
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.START_YEAR IS ''' || 'Год рождения объекта' || '''';  
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.FINISH_YEAR IS ''' || 'Год реализации объекта' || ''''; 
+   --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
+   --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.START_YEAR IS ''' || 'Год рождения объекта' || '''';  
+   --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.FINISH_YEAR IS ''' || 'Год реализации объекта' || ''''; 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.NEW_YEAR IS ''' || 'Год, в котором объект стал новым' || ''''; 
   
 /* CREATE CALENDAR*/    
@@ -162,6 +137,20 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_POWER';
     END IF; 
     EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_POWER  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE' ;
+    
+       /* CREATE MONTH*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'MONTH';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.MONTH CASCADE CONSTRAINTS';
+    END IF;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.MONTH
+                                               (ID   NUMBER, 
+                                                NAME                     VARCHAR2(4000 BYTE)
+                                                )';
+                                                
 
    /* CREATE RESULT_AIP*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -492,7 +481,7 @@ PROCEDURE GET_FINANCING_SOURCE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* create GET_EXTEND */
-PROCEDURE GET_EXTEND(cur_thread in number, all_thread in number);
+PROCEDURE GET_EXTEND;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* RUN */
@@ -545,6 +534,10 @@ PROCEDURE GET_TITLE_TYPE;
 
 -- загрузка GET_TITLE_STATE
 PROCEDURE GET_TITLE_STATE;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/* create GET_ALL_DISTR */
+PROCEDURE GET_ALL_DISTR;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 END GET_PBI_2V;
@@ -610,11 +603,12 @@ PROCEDURE GET_CALENDAR
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 as
     new_date date := to_date('01.12.2013','dd.mm.yyyy');
-    n_months number := 96;
+    n_months number;
     tmp date;
     tmp_count number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.CALENDAR ' ;
+    select round(MONTHS_BETWEEN(last_day(sysdate), to_date('01.12.2013','dd.mm.yyyy'))) into n_months  from dual;
     for x in 1..n_months
     loop
         tmp := last_day(add_months(new_date, x));     
@@ -623,8 +617,8 @@ BEGIN
     end loop;
         COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.calendar;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_CALENDAR', 'INSERT PBI.CALENDAR: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_CALENDAR', 'INSERT PBI.CALENDAR: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.CALENDAR: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_CALENDAR;
 
@@ -687,8 +681,8 @@ BEGIN
 	SELECT main_id, 1 FROM main_pp_link;
 	COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.main_pp_link;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_MAIN_PP_LINK_OLD;
 
 /* create MAIN_PP_LINK */
@@ -740,8 +734,8 @@ BEGIN
 	SELECT main_id, 1 FROM main_pp_link;
 	COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.main_pp_link;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_MAIN_PP_LINK;
 
 /* create COB_PREGP_LINK */
@@ -772,8 +766,8 @@ BEGIN
     ORDER BY c_id;  
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.cob_pregp_link;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_COB_PREGP_LINK', 'INSERT PBI.cob_pregp_link: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_COB_PREGP_LINK', 'INSERT PBI.cob_pregp_link: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_COB_PREGP_LINK;
 
 /* create GET_TITLE */
@@ -785,24 +779,13 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TITLE ' ;
     INSERT INTO title (title_number, title_type_id, cob_id,name,  start_year, finish_year) 
     SELECT DISTINCT t.title_number,
-        (SELECT DISTINCT FIRST_VALUE(tt.title_type_id) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from) FROM stroy.title tt
+        (SELECT DISTINCT LAST_VALUE(tt.title_type_id) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from
+        RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) 
+        FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as title_type_id,
         cc.cob_id,
         (SELECT DISTINCT FIRST_VALUE(tt.title_name) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from DESC) FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) AS name,
-     /*   (SELECT st.title_address FROM stroy.title st,
-                (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
-                FROM stroy.title stt
-                WHERE
-                    stt.year >= 2014
-                    AND stt.stage_id = 95
-                    AND stt.state_id = 3
-                ) dat
-            WHERE   
-                 st.id = dat.id
-                 AND st.title_number = t.title_number
-                 AND dat.rn = 1
-        ) title_address, */
         (SELECT DISTINCT FIRST_VALUE(tt.year) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from) FROM stroy.title tt
             WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as start_year,
         (SELECT MAX(tt.year) FROM stroy.title tt
@@ -838,8 +821,8 @@ BEGIN
         end;
         COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_TITLE', 'INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_TITLE', 'INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_TITLE;
 
@@ -850,11 +833,11 @@ PROCEDURE GET_COB
     tmp_count number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB ' ;
-    INSERT INTO pbi.cob ( ID, NAME, ADDRESS, CENTER_LATITUDE, CENTER_LONGITUDE, COB_TYPE_ID )
+    INSERT INTO pbi.cob ( ID, NAME, ADDRESS, CENTER_LATITUDE, CENTER_LONGITUDE )
     WITH v_title AS
     (
-        SELECT t.id, t.title_number, t.delivery_date, t.title_name AS name, t.title_address
-        FROM stroy.title t,
+        SELECT tt.id, tt.title_number, tt.delivery_date, tt.title_name AS name, tt.title_address
+        FROM stroy.title tt,
             (
             SELECT t.id,  t.title_number,
                    row_number() over (partition by t.title_number order by t.year desc, t.date_from desc) as RN
@@ -867,22 +850,12 @@ BEGIN
                 AND t.state_id != 4
             ) dat
         WHERE   
-             t.id = dat.id
+             tt.id = dat.id
              AND dat.rn = 1
-        ORDER BY t.title_number
+        ORDER BY tt.title_number
     )
     SELECT c.id, cc.name, cc.address,     
-        ROUND(AVG(tge.center_latitude), 4), ROUND(AVG(tge.center_longitude), 4),
-       -- NVL(pbi.get_cob_v2.get_gov_prog_by_cost (MAX(NVL(tc.costs_classifier_id,2891))),2891 ) cost_id,
-        --MAX(extract (year from vt.delivery_date)),
-         (SELECT CASE 
-                            WHEN mck.is_big = 1 THEN 1 
-                            WHEN mck.new_year = EXTRACT(YEAR FROM sysdate) THEN 2 
-                            WHEN mck.new_year < EXTRACT(YEAR FROM sysdate) THEN 3 
-                            WHEN mck.new_year > EXTRACT(YEAR FROM sysdate) THEN 4 
-                        end
-        FROM 
-            stroy.mv_cob_kind mck  where mck.id = c.id) cob_type
+        ROUND(AVG(tge.center_latitude), 4), ROUND(AVG(tge.center_longitude), 4)
     FROM stroy.cob c    
         INNER JOIN stroy.cob_card cc ON cc.cob_id = c.id
         AND cc.date_to is NULL
@@ -894,11 +867,9 @@ BEGIN
     GROUP BY c.id, cc.name, cc.address
     ORDER BY c.id;
 
-    FOR x IN 
+/*    FOR x IN 
     (
-         SELECT ct.cob_id, 
-            max(t.year) last_dt, 
-            min(t.year) first_dt,
+         SELECT ct.cob_id,
             (select new_year from stroy.mv_cob_kind mck WHERE  mck.id = ct.cob_id) as NEW_YEAR
         FROM
             stroy.title t
@@ -915,11 +886,11 @@ BEGIN
             FINISH_YEAR = x.last_dt,
             NEW_YEAR = x.NEW_YEAR
         WHERE id = x.cob_id;
-    END LOOP;
+    END LOOP;*/
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.cob;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_COB', 'INSERT PBI.COB: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_COB', 'INSERT PBI.COB: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_COB;
 
 -- загрузка COB_DISTR_LINK
@@ -943,7 +914,8 @@ BEGIN
                 INNER JOIN v_title vt ON vt.title_number = ct.TITLE_NUMBER
                 LEFT JOIN stroy.TITLE_ADM_REGION adm ON adm.TITLE_ID = vt.ID                    
                 JOIN stroy.ADM_REGION  reg ON reg.id=adm.ADM_REGION_ID                   
-            WHERE cc.date_to is null
+            WHERE 
+                cc.date_to is null
                 AND reg.delete_date is null
                 AND reg .type = 3
                 AND reg.adm_region_id != reg.id
@@ -966,7 +938,7 @@ BEGIN
         )
     )
     ORDER BY cob_id;
-    INSERT INTO pbi.cob_distr_link(cob_id,distr_id)
+ /*   INSERT INTO pbi.cob_distr_link(cob_id,distr_id)
     SELECT d.id, get_distr(d.id)
     from 
     (
@@ -977,17 +949,15 @@ BEGIN
      select DISTINCT c.id
     from
         pbi.cob c,
-        pbi.cob_distr_link cdl,
-        pbi.distr d
+        pbi.cob_distr_link cdl
     where 
         cdl.cob_id = c.id
-        and cdl.distr_id = d.id
-    ) d; 
+    ) d; */
 
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.cob_distr_link;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.COB_DISTR_LINK', 'INSERT PBI.COB_DISTR_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.COB_DISTR_LINK', 'INSERT PBI.COB_DISTR_LINK: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_COB_DISTR_LINK;
 
@@ -1000,14 +970,22 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.AO' ;
     
     INSERT INTO pbi.ao ( id,  name)
-    SELECT DISTINCT ao_id ,adm.name
-    FROM pbi.distr a
-    JOIN stroy.adm_region  adm ON adm.id=a.ao_id;
+    select distinct reg.id, reg.name from 
+     stroy.title t 
+      JOIN stroy.TITLE_ADM_REGION adm ON adm.TITLE_ID = t.ID
+      JOIN stroy.ADM_REGION  reg ON reg.id=adm.ADM_REGION_ID
+      WHERE reg.type = 2
+     union 
+     select distinct reg.id, reg.name from 
+         stroy.title t 
+      JOIN STROY.title_adm_region_detail adm ON adm.TITLE_ID = t.ID
+      JOIN stroy.ADM_REGION  reg ON reg.id=adm.ADM_REGION_ID
+      WHERE reg.type = 2;
 
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.ao;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.AO', 'INSERT PBI.AO: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.AO', 'INSERT PBI.AO: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_AO;
 
@@ -1026,8 +1004,8 @@ BEGIN
 
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.DISTR;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.DISTR', 'INSERT PBI.DISTR: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.DISTR', 'INSERT PBI.DISTR: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_DISTR;
 
@@ -1041,8 +1019,8 @@ BEGIN
     INSERT INTO financing_source (id, name) SELECT id, name FROM stroy.financing_source;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.financing_source;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_FINANCING_SOURCE', 'INSERT PBI.FINANCING_SOURCE: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_FINANCING_SOURCE', 'INSERT PBI.FINANCING_SOURCE: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_FINANCING_SOURCE;
 
@@ -1067,8 +1045,8 @@ BEGIN
     WHERE rn = 1;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.power;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_POWER', 'INSERT PBI.POWER: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_POWER', 'INSERT PBI.POWER: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_POWER;
 
 /* create RESULT_AIP */
@@ -1081,8 +1059,8 @@ BEGIN
     INSERT INTO pbi.result_aip (id, name, unit) SELECT id, name, name_unit FROM stroy.result_aip;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.result_aip;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_RESULT_AIP', 'INSERT PBI.RESULT_AIP: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_RESULT_AIP', 'INSERT PBI.RESULT_AIP: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_RESULT_AIP;
 
 /* create MSK_GOV_PROGRAM */
@@ -1095,8 +1073,8 @@ BEGIN
     INSERT INTO pbi.msk_gov_program (id, name) SELECT id, name FROM stroy.msk_gov_program;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.msk_gov_program;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_MSK_GOV_PROGRAM', 'INSERT PBI.MSK_GOV_PROGRAM: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MSK_GOV_PROGRAM', 'INSERT PBI.MSK_GOV_PROGRAM: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_MSK_GOV_PROGRAM;
 
 /* create PP */
@@ -1140,8 +1118,8 @@ FROM
 	  AND t.STAGE_ID =95;*/
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.pp;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2VGET_PP', 'INSERT PBI.PP: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2VGET_PP', 'INSERT PBI.PP: ' || to_char(tmp_count) || ' (ROWS)');
 	END GET_PP;
 
 /* create PREGP */
@@ -1171,12 +1149,12 @@ BEGIN
     END LOOP;
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.pregp;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.PREGP', 'INSERT PBI.PREGP: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.PREGP', 'INSERT PBI.PREGP: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_PREGP;
 
 /* create GET_EXTEND */
-PROCEDURE GET_EXTEND(cur_thread in number, all_thread in number)
+PROCEDURE GET_EXTEND
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
     min_year NUMBER;
@@ -1190,14 +1168,16 @@ IS
     tmp_count NUMBER;
     com_ number := 0;
 BEGIN
-    FOR x IN (SELECT  m.calendar_id, cct.cob_id FROM pbi.main m
-                        inner join stroy.cob_title cct ON  cct.title_number = m.title_number
-                        where mod(cct.cob_id, all_thread) = cur_thread)
+    FOR x IN (SELECT  m.calendar_id, c.year,  cct.cob_id, m.title_number FROM pbi.main m
+                        inner join pbi.calendar c ON  m.calendar_id = c.id
+                        inner join stroy.cob_title cct ON  cct.title_number = m.title_number)
                 LOOP
                     com_ := com_ + 1;
+                    n_extehd_id :=  pbi.seq_extend.nextval;
                     BEGIN
+                         INSERT INTO extend (id, start_constr, stop_constr) 
                         SELECT
-                            to_number(to_char(min(tt.start_date),'YYYY')), to_number(to_char(max(tt.end_date),'YYYY')) into min_year, max_year
+                            n_extehd_id, to_number(to_char(min(tt.start_date),'YYYY')), to_number(to_char(max(tt.end_date),'YYYY')) --into min_year, max_year
                         FROM stroy.title t
                             INNER JOIN stroy.title_term  tt on t.id=tt.title_id
                             INNER JOIN pbi.calendar c ON c.id = x.calendar_id
@@ -1209,14 +1189,14 @@ BEGIN
                             AND t.year >= 2014
                             AND ct.cob_id = x.cob_id
                             AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'));
-                        n_extehd_id :=  pbi.seq_extend.nextval;
+                        
                     EXCEPTION WHEN NO_DATA_FOUND THEN
                         min_year := 0;
                         max_year := 0;
                     END;
 
                     tmp_k := 0;
-                    
+
                     FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
                     LOOP 
                     BEGIN
@@ -1255,20 +1235,20 @@ BEGIN
                                 GROUP BY YEAR,
                                     fin_y,
                                     cob_id
-                                ORDER BY cob_id
+                              --  ORDER BY cob_id
                             )
                         SELECT cob_id,  max(dr) INTO tmp_cob, tmp_k
                         FROM dat2 
                         GROUP BY 
-                          cob_id
-                        ORDER BY cob_id;
+                          cob_id;
+                    --    ORDER BY cob_id;
                     EXCEPTION WHEN NO_DATA_FOUND THEN
                         tmp_k := 0;
                     END;
                     END LOOP;
-                    
-                    FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
-                    LOOP 
+                                       
+ --                   FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
+ --                   LOOP 
                     BEGIN
                          with 
                             dat as (
@@ -1284,7 +1264,7 @@ BEGIN
                                     AND t.state_id =3
                                     AND ct.cob_id = x.cob_id
                                     AND t.year BETWEEN 2014 and 2022
-                                    AND t.year < y.year
+                                    AND t.year < x.year
                             ),
                             dat1 AS (
                                 SELECT dat.year,
@@ -1295,30 +1275,35 @@ BEGIN
                                 WHERE dat.id=tmax
                             )
                             select max(fin_y) INTO tmp_end_year from dat1;
-                    
+
                     EXCEPTION WHEN NO_DATA_FOUND THEN
                         tmp_k := 0;
                     END;
-                    END LOOP;
+  --                  END LOOP;
 
-                    INSERT INTO extend (id, start_constr, stop_constr, num_lag, delivery_date) 
-                    VALUES (n_extehd_id, min_year, max_year, tmp_k, tmp_end_year);
+ --                   INSERT INTO extend (id, start_constr, stop_constr, num_lag, delivery_date) 
+--                    VALUES (n_extehd_id, min_year, max_year, tmp_k, tmp_end_year);
+                    UPDATE extend
+                    SET num_lag = tmp_k,
+                        delivery_date = tmp_end_year
+                    WHERE id = n_extehd_id;
+                    
                     UPDATE main
                     SET extend_id = n_extehd_id
-                    WHERE title_number in (SELECT title_number FROM stroy.cob_title WHERE cob_id = x.cob_id)
+                    WHERE title_number = x.title_number
                         AND calendar_id = x.calendar_id;
-                        
-                    if com_ = 100 then 
+
+                    if com_ = 1000 then 
                         com_ := 0;
                         commit;
                     end if;
-                    
-                    
+
+
             END LOOP;
             COMMIT;
             SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
-            INSERT INTO log (id, msg_type, metod, msg) 
-            VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+            INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+            VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
             DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
             COMMIT;
 END GET_EXTEND;
@@ -1335,17 +1320,18 @@ BEGIN
     from pregp p 
     inner join stroy.costs_classifier cc on p.gp_id = cc.id
     INNER JOIN stroy.state_program stt ON cc.state_program_id = stt.id;
-/*    SELECT DISTINCT stt.id, '('||stt.VALUE ||') '||stt.NAME 
-    FROM stroy.costs_classifier cc
-        INNER JOIN stroy.state_program stt ON cc.state_program_id = stt.id
-    WHERE cc.state_program_id IS NOT NULL 
-        AND cc.costs_classifier_id IS NULL;*/
---    INSERT INTO pbi.gp(ID,name)
- --   SELECT cct.id cost_id, '('||cct.VALUE ||') '||cct.NAME FROM  stroy.costs_classifier cct where id in (2890, 2893, 3093);
+
+    INSERT INTO pbi.gp(ID,name) 
+    SELECT  cc.id, cc.NAME FROM stroy.costs_classifier cc,
+    (select  p.gp_id as id from pregp p
+    minus
+    select id as id  from gp) dat
+    WHERE dat.id = cc.id ;
+
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.gp;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_GP', 'INSERT PBI.GP: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_GP', 'INSERT PBI.GP: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_GP;
 
@@ -1367,8 +1353,8 @@ BEGIN
     
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title_type;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_TITLE_TYPE', 'INSERT PBI.TITLE_TYPE: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_TITLE_TYPE', 'INSERT PBI.TITLE_TYPE: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_TITLE_TYPE;
 
@@ -1384,8 +1370,8 @@ BEGIN
     
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.title_state;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_TITLE_STATE', 'INSERT PBI.TITLE_STATE: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_TITLE_STATE', 'INSERT PBI.TITLE_STATE: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_TITLE_STATE;
 -- загрузка GP
@@ -1401,12 +1387,16 @@ BEGIN
         INNER JOIN stroy.state_program stt ON cc.state_program_id = stt.id
     WHERE cc.state_program_id IS NOT NULL 
         AND cc.costs_classifier_id IS NULL;
---   INSERT INTO pbi.gp_lf(ID,name)
---  SELECT cct.id cost_id, '('||cct.VALUE ||') '||cct.NAME FROM  stroy.costs_classifier cct where id in (2890, 2893, 3093);
+
+    INSERT INTO pbi.gp_lf(ID,name) 
+    select DISTINCT stt.id, '('||stt.VALUE ||') '||stt.NAME  
+    from  stroy.state_program stt 
+    where id in (select GP_LF_ID from pp minus select id from gp_lf);
+
     COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.gp_lf;    
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_GP', 'INSERT PBI.GP_LF: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_GP', 'INSERT PBI.GP_LF: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_GP_LF;
 
@@ -1539,12 +1529,268 @@ BEGIN
     WHERE financing_source_id is null;
     
     COMMIT;
+    EXECUTE IMMEDIATE 'CREATE INDEX title_number ON main(title_number)';
     SELECT COUNT(*) INTO tmp_count FROM pbi.main;
-    INSERT INTO log (id, msg_type, metod, msg) 
-    VALUES ( pbi.Seq_Log.NEXTVAL, 'I', 'GET_PBI_2V.GET_MAIN', 'INSERT PBI.MAIN: ' || to_char(tmp_count) || ' (ROWS)');
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MAIN', 'INSERT PBI.MAIN: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
 END GET_MAIN;
+
+/* create GET_ALL_DISTR */
+PROCEDURE GET_ALL_DISTR
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    tmp_count number;
+    tmp_id number := 1000000;
+    SUBTYPE ao IS VARCHAR2(64);
+    TYPE distr IS TABLE OF NUMBER INDEX BY ao;
+   tmp_link distr;
+   t ao;
+   temp_id number;
+    
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.DISTR' ;
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_DISTR_LINK' ;
+    FOR x IN
+        (
+        WITH dat as
+            (
+                SELECT c.id as cob_id, t.id title_id
+                FROM  cob c
+                    INNER JOIN stroy.cob_title ct ON ct.cob_id = c.id
+                    INNER JOIN v_title t ON t.title_number = ct.title_number
+              --  WHERE t.STAGE_ID = 95
+                       -- AND t.id = 1765032
+            )
+        SELECT distinct dat.cob_id, ar.id distr, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        FROM  dat
+            LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id 
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 3
+        UNION
+        SELECT distinct dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) 
+        FROM  dat
+            LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id 
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 3
+        )
+    LOOP
+        IF x.distr is not null and x.name is not null and x.ao != 0
+        THEN        
+            INSERT INTO pbi.cob_distr_link(cob_id, distr_id) 
+            VALUES(x.cob_id, x.distr);
+        END IF;
+    END LOOP;
+ /*   
+    FOR x IN
+    (
+        WITH dat as
+            (
+                SELECT c.cob_id as cob_id, t.id title_id
+                FROM  
+                    (
+                    select id cob_id from cob
+                    minus
+                    select cob_id from cob_distr_link 
+                    ) c
+                    INNER JOIN stroy.cob_title ct ON ct.cob_id = c.cob_id
+                    INNER JOIN v_title t ON t.title_number = ct.title_number
+               -- WHERE t.STAGE_ID = 95
+                        --AND t.id = 1765032
+            )
+        SELECT dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        FROM  dat
+            LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 2
+        UNION 
+        SELECT distinct dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) 
+        FROM dat
+            LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 2
+    )
+    LOOP
+        IF x.id is not null and x.name is not null and x.ao != 0
+        THEN
+            tmp_id := tmp_id + 1;
+            INSERT INTO pbi.distr(id, name, ao_id) 
+            VALUES(tmp_id, 'Район не указан', x.ao);
+            
+            INSERT INTO pbi.cob_distr_link(cob_id, distr_id) 
+            VALUES(x.cob_id, tmp_id);
+        END IF;
+    END LOOP;*/
+   
+   begin
+    FOR x IN
+        (
+            WITH dat as
+                (
+                    SELECT c.cob_id as cob_id, t.id title_id
+                    FROM  
+                        (
+                        select id cob_id from cob
+                        minus
+                        select cob_id from cob_distr_link 
+                        ) c
+                        INNER JOIN stroy.cob_title ct ON ct.cob_id = c.cob_id
+                        INNER JOIN v_title t ON t.title_number = ct.title_number
+                   -- WHERE t.STAGE_ID = 95
+                            --AND t.id = 1765032
+                )
+            SELECT dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+            FROM  dat
+                LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id
+                LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+                  AND ar."TYPE" = 2
+            UNION 
+            SELECT distinct dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) 
+            FROM dat
+                LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id
+                LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+                  AND ar."TYPE" = 2
+        )
+        LOOP
+            IF x.id is not null and x.name is not null and x.ao != 0
+            THEN
+                BEGIN
+                    DBMS_OUTPUT.PUT_LINE(';');
+                    temp_id := tmp_link(to_char(x.ao));  
+                    DBMS_OUTPUT.PUT_LINE(temp_id);
+                EXCEPTION WHEN NO_DATA_FOUND THEN
+                    tmp_id := tmp_id + 1;
+                    DBMS_OUTPUT.PUT_LINE('a');
+                    tmp_link(to_char(x.ao)) := tmp_id;
+                    temp_id := tmp_id;
+                    INSERT INTO pbi.distr(id, name, ao_id) 
+                    VALUES(tmp_id, 'Район не указан', x.ao);
+                END;            
+                
+                INSERT INTO pbi.cob_distr_link(cob_id, distr_id) 
+                VALUES(x.cob_id, temp_id);
+            END IF;
+        END LOOP;
+    end;
+    
+    FOR x IN
+    (
+        WITH dat as
+            (
+                SELECT c.id as cob_id, t.id title_id
+                FROM  cob c
+                    INNER JOIN stroy.cob_title ct ON ct.cob_id = c.id
+                    INNER JOIN v_title t ON t.title_number = ct.title_number
+                --WHERE t.STAGE_ID = 95
+            )
+        SELECT ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        FROM  dat
+            LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id 
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 3
+        UNION
+        SELECT ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        FROM  dat
+            LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id 
+            LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
+              AND ar."TYPE" = 3
+            )
+    LOOP
+        IF x.id is not null and x.name is not null and x.ao != 0
+        THEN
+            INSERT INTO pbi.distr(id, name, ao_id) 
+            VALUES(x.id, x.name, x.ao);
+        END IF;
+    END LOOP;
+    COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.distr;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.DISTR', 'INSERT PBI.DISTR: ' || to_char(tmp_count) || ' (ROWS)');
+    SELECT COUNT(*) INTO tmp_count FROM pbi.cob_distr_link;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.COB_DISTR_LINK', 'INSERT PBI.COB_DISTR_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+    DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.TITLE: ' || to_char(tmp_count) || ' (ROWS)');
+END GET_ALL_DISTR;
+
+PROCEDURE NO_COB
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    tmp_cob_id NUMBER := 1000000;
+    title_address VARCHAR2(4000);
+    tmp number;
+BEGIN
+    FOR x in (
+        SELECT tt.id, tt.title_number, tt.delivery_date, tt.title_name AS name, tt.title_address
+        FROM stroy.title tt,
+            (
+            SELECT t.id,  t.title_number,
+                   row_number() over (partition by t.title_number order by t.year desc, t.date_from desc) as RN
+            FROM stroy.title t
+            WHERE
+                t.year >= 2014
+                AND t.delete_date is null
+                AND t.stage_id = 95
+                AND t.title_type_id in (1,2,3)
+                AND t.state_id != 4
+            ) dat
+        WHERE   
+             tt.id = dat.id
+             AND dat.rn = 1
+             AND NOT EXISTS (SELECT 1 FROM stroy.cob_title cc WHERE cc.title_number = tt.title_number)
+        ORDER BY tt.title_number)
+    LOOP
+         tmp_cob_id := tmp_cob_id + 1;
+         INSERT INTO title (title_number, title_type_id, cob_id,name,  start_year, finish_year) 
+            SELECT DISTINCT t.title_number,
+                (SELECT DISTINCT LAST_VALUE(tt.title_type_id) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from
+                RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+                ) FROM stroy.title tt
+                    WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as title_type_id,
+                tmp_cob_id,
+                (SELECT DISTINCT FIRST_VALUE(tt.title_name) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from DESC) FROM stroy.title tt
+                    WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) AS name,
+                 (SELECT DISTINCT FIRST_VALUE(tt.year) OVER(PARTITION BY tt.title_number ORDER BY tt.date_from) FROM stroy.title tt
+                    WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as start_year,
+                (SELECT MAX(tt.year) FROM stroy.title tt
+                    WHERE tt.stage_id = 95 AND tt.state_id = 3 AND tt.title_number = t.title_number) as finish_year
+                FROM   stroy.title t
+            WHERE  
+                t.stage_id = 95
+                AND t.title_number = x.title_number
+                AND t.state_id = 3;
+                
+        begin
+        FOR xx in (
+                SELECT st.title_address, t.title_number
+                FROM stroy.title st,
+                        pbi.title t ,
+                        (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
+                        FROM stroy.title stt
+                        WHERE
+                            stt.year >= 2014
+                            AND stt.stage_id = 95
+                            AND stt.state_id = 3
+                        ) dat                
+                    WHERE   
+                         st.id = dat.id
+                         and st.title_number = t.title_number
+                        and st.title_number = x.title_number
+                         AND dat.rn = 1)
+        loop
+            update pbi.title
+            set address = xx.title_address
+            where title_number = xx.title_number;
+        end loop;
+        end;
+        SELECT count(*) INTO tmp FROM title WHERE cob_id = tmp_cob_id;
+        IF tmp > 0 THEN
+            INSERT INTO pbi.cob ( ID, name)
+            VALUES (tmp_cob_id, 'Не распределенные титула');
+        END IF;
+    END LOOP;
+    COMMIT;
+END NO_COB ;
 
 /* RUN */
 PROCEDURE RUN
@@ -1564,8 +1810,7 @@ BEGIN
 /* create GET_FINANCING_SOURCE */
     GET_FINANCING_SOURCE;
 /* create GET_EXTEND */
- --   GET_EXTEND;
-     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.EXTEND ' ;
+--    GET_EXTEND;
 /* create GET_POWER */
     GET_POWER;
 /* create RESULT_AIP */
@@ -1581,15 +1826,18 @@ BEGIN
 /* create MSK_GOV_PROGRAM */
     GET_MSK_GOV_PROGRAM;
 /* create COB_PREGP_LINK */
---	GET_COB_PREGP_LINK;
+	GET_COB_PREGP_LINK;
 /* create COB */
 	GET_COB;    
 -- загрузка COB_DISTR_LINK
-    GET_COB_DISTR_LINK;
+--    GET_COB_DISTR_LINK;
 -- загрузка DISTR
-    GET_DISTR;
+--    GET_DISTR;
+/* create GET_ALL_DISTR */
+    GET_ALL_DISTR;
 -- загрузка AO
     GET_AO;
+    NO_COB;
 -- загрузка GET_TITLE_TYPE
     GET_TITLE_TYPE;
 -- загрузка GET_TITLE_STATE
@@ -1609,8 +1857,8 @@ BEGIN
     SET distr_id = 0
     WHERE distr_id is null;
 
-    INSERT INTO pbi.distr ( id, name, ao_id)
-    VALUES (0,  'Район не указан',  0);
+    --INSERT INTO pbi.distr ( id, name, ao_id)
+    --VALUES (0,  'Район не указан',  0);
 
     INSERT INTO pbi.AO ( id, name)
     VALUES (0,  'АО не указан');
@@ -1627,8 +1875,13 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_TYPE ' ;
     INSERT INTO PBI.COB_TYPE 
     SELECT id, name from STROY.COB_TYPE;
-
-
+    
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MONTH ' ;
+    INSERT INTO  MONTH 
+    SELECT DISTINCT EXTRACT(MONTH FROM dt),
+    to_char(dt,'MONTH','NLS_DATE_LANGUAGE = RUSSIAN')
+    from calendar
+    order by 1;
     
     COMMIT;
 END RUN;
