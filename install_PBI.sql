@@ -13,20 +13,24 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.EXTEND CASCADE CONSTRAINTS';
     END IF;
     EXECUTE IMMEDIATE 'CREATE TABLE PBI.EXTEND  (
-                                                ID NUMBER(10,0) NOT NULL ENABLE, 
+                                                ID NUMBER(10,0) NOT NULL ENABLE,
+												MAIN_ID NUMBER,
                                                 START_CONSTR NUMBER, 
                                                 STOP_CONSTR NUMBER, 
                                                 NUM_LAG NUMBER, 
                                                 DELIVERY_DATE NUMBER, 
-                                                COB_TYPE_ID        NUMBER
+                                                COB_TYPE_ID        NUMBER,
+												CONSTRAINT "EXTEND_PK" PRIMARY KEY ("ID")
                                                 )
                                                 TABLESPACE USERS';
+	EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."EXTEND_INDEX1" ON "PBI"."EXTEND" ("START_CONSTR", "MAIN_ID")';
+	EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."EXTEND_INDEX2" ON "PBI"."EXTEND" ("MAIN_ID")';
                                                 
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.START_CONSTR IS ''' || 'Год начала строительства' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.STOP_CONSTR IS ''' || 'Год окончания строительства' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.NUM_LAG IS ''' || 'Количество переносов сдачи объекта' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.DELIVERY_DATE IS ''' || 'Год сдачи объекта' || '''';
- --   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.YEAR_DP IS ''' || 'Год полной поставки мощностей' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.MAIN_ID IS ''' || 'Ссылка на main' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.EXTEND.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_EXTEND';
@@ -75,11 +79,11 @@ BEGIN
                                                 NAME    VARCHAR2(4000 BYTE), 
                                                 ADDRESS                VARCHAR2(4000 BYTE), 
                                                 CENTER_LATITUDE        NUMBER, 
-                                                CENTER_LONGITUDE       NUMBER,
+                                                CENTER_LONGITUDE       NUMBER
                                                 --COB_TYPE_ID        NUMBER, 
                                                 --START_YEAR        NUMBER,
 												--FINISH_YEAR        NUMBER,
-                                                NEW_YEAR NUMBER
+                                                --NEW_YEAR NUMBER
                                                 )';
                                                 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.ID IS ''' || 'ID объекта' || '''';
@@ -90,7 +94,7 @@ BEGIN
    --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.COB_TYPE_ID IS ''' || 'Тип объекта' || '''';
    --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.START_YEAR IS ''' || 'Год рождения объекта' || '''';  
    --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.FINISH_YEAR IS ''' || 'Год реализации объекта' || ''''; 
-   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.NEW_YEAR IS ''' || 'Год, в котором объект стал новым' || ''''; 
+   --EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB.NEW_YEAR IS ''' || 'Год, в котором объект стал новым' || ''''; 
   
 /* CREATE CALENDAR*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -107,6 +111,10 @@ BEGIN
                                                 DAY NUMBER, 
                                                 DT DATE,
                                                 CONSTRAINT C_CALENDAR_PK PRIMARY KEY (ID))';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT ON PBI.CALENDAR (DT)';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT_ID ON PBI.CALENDAR (DT, ID)';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_YEAR_ID ON PBI.CALENDAR (YEAR, ID)';
+
 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.CALENDAR.ID IS ''' || 'Идентификатор календаря' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.CALENDAR.YEAR IS ''' || 'Год календаря' || '''';
@@ -309,7 +317,7 @@ BEGIN
                                             FINANCING_SOURCE_ID NUMBER,
 -- 24.05.2021 удален по новым условиям 
                                             MSK_GOV_PROGRAM_ID NUMBER, 
-                                            EXTEND_ID NUMBER, 
+-- 16.06.2021 удален по новым условиям      EXTEND_ID NUMBER, 
                                             POWER_ID NUMBER, 
                                             TITLE_STATE_ID NUMBER, 
                                             VALUE_FULL NUMBER, 
@@ -317,12 +325,17 @@ BEGIN
                                             VALUE_CURR NUMBER, 
                                             CONSTRAINT MAIN_PK PRIMARY KEY (ID))
                                             TABLESPACE USERS' ;
+											
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_MAIN_CALENDAR_ID ON PBI.MAIN (CALENDAR_ID)'; 
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_MAIN_INDEX2 ON PBI.MAIN (TITLE_NUMBER, CALENDAR_ID)'; 
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_MAIN_INDEX3 ON PBI.MAIN (TITLE_NUMBER, ID, CALENDAR_ID)';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_TITLE_NUMBER ON PBI.MAIN (TITLE_NUMBER)';
     
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.CALENDAR_ID IS ''' || 'ID календаря' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.TITLE_NUMBER IS ''' || '	Номер титула' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.FINANCING_SOURCE_ID IS ''' || 'Тип финансирования ' || '''';    
 --    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.MS_ID IS ''' || 'Источник финансов' || '''';
-    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.EXTEND_ID IS ''' || 'Постоянный блок данных для объекта на дату' || '''';
+--    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.EXTEND_ID IS ''' || 'Постоянный блок данных для объекта на дату' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.POWER_ID IS ''' || 'Мощности' || '''';
     --       EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.FINANCING_SOURCE_ID IS ''' || 'Внешний ключ на таблицу FINANCING_SOURCE' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.MAIN.MSK_GOV_PROGRAM_ID IS ''' || 'Внешний ключ на таблицу MSK_GOV_PROGRAM' || '''';
@@ -1168,7 +1181,7 @@ IS
     tmp_count NUMBER;
     com_ number := 0;
 BEGIN
-    FOR x IN (SELECT  m.calendar_id, c.year,  cct.cob_id, m.title_number FROM pbi.main m
+  /*  FOR x IN (SELECT  m.calendar_id, c.year,  cct.cob_id, m.title_number FROM pbi.main m
                         inner join pbi.calendar c ON  m.calendar_id = c.id
                         inner join stroy.cob_title cct ON  cct.title_number = m.title_number)
                 LOOP
@@ -1305,7 +1318,8 @@ BEGIN
             INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
             VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
             DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
-            COMMIT;
+            COMMIT;*/
+            NULL;
 END GET_EXTEND;
 
 -- загрузка GP
@@ -1519,8 +1533,8 @@ BEGIN
     FOR x in title 
     LOOP
         IF NVL(x.full, 0) != 0 THEN
-            INSERT INTO main (id, calendar_id,  title_number, financing_source_id, extend_id, power_id, title_state_id,    value_full,  value_done,  value_curr, msk_gov_program_id)
-            VALUES (pbi.seq_main.NEXTVAL, x.calendar_id, x.title_number, x.financing_source_id,  null, x.power_id, x.title_state_id, x.full, x.done, x.curr, x.ms);
+            INSERT INTO main (id, calendar_id,  title_number, financing_source_id, power_id, title_state_id,    value_full,  value_done,  value_curr, msk_gov_program_id)
+            VALUES (pbi.seq_main.NEXTVAL, x.calendar_id, x.title_number, x.financing_source_id,  x.power_id, x.title_state_id, x.full, x.done, x.curr, x.ms);
         END IF;
     END LOOP;    
     
@@ -1529,7 +1543,7 @@ BEGIN
     WHERE financing_source_id is null;
     
     COMMIT;
-    EXECUTE IMMEDIATE 'CREATE INDEX title_number ON main(title_number)';
+--    EXECUTE IMMEDIATE 'CREATE INDEX title_number ON main(title_number)';
     SELECT COUNT(*) INTO tmp_count FROM pbi.main;
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
     VALUES ('I', 'GET_PBI_2V.GET_MAIN', 'INSERT PBI.MAIN: ' || to_char(tmp_count) || ' (ROWS)');
@@ -1869,8 +1883,8 @@ BEGIN
 	DELETE FROM FINANCING_SOURCE fs
 	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.FINANCING_SOURCE_ID = fs.id);
     
-    DELETE FROM extend fs
-	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.extend_id = fs.id);
+--    DELETE FROM extend fs
+--	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.extend_id = fs.id);
     
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_TYPE ' ;
     INSERT INTO PBI.COB_TYPE 
