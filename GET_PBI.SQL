@@ -1,4 +1,4 @@
-begin
+begin 
     EXECUTE IMMEDIATE ' ALTER TABLE PBI.pbi_main_months  ADD NUM_LAG  number';
 EXCEPTION WHEN OTHERS THEN
     null;

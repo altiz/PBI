@@ -1,4 +1,4 @@
-DECLARE
+DECLARE 
     tmp_current_user varchar2(64);
     tmp_is_objects number;
 BEGIN

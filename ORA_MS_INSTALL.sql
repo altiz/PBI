@@ -1,4 +1,4 @@
-create or replace PACKAGE PBI.GET_MSSQL_2v AS 
+create or replace PACKAGE PBI.GET_MSSQL_2v AS  
 
 PROCEDURE run;
 PROCEDURE main_run;

@@ -1,4 +1,4 @@
-DROP TABLE StroyInvest.dbo.CALENDAR;
+DROP TABLE StroyInvest.dbo.CALENDAR; 
 CREATE TABLE StroyInvest.dbo.CALENDAR (
 	ID int NULL,
 	[YEAR] int NULL,
