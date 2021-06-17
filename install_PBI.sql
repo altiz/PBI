@@ -1201,15 +1201,16 @@ BEGIN
 			AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
 			group by m.calendar_id, c.year,  ct.cob_id, m.title_number, m.id
 		);
-	begin
+        
+	BEGIN
 	FOR x in 
 		(
 		SELECT  DISTINCT ex.id, m.calendar_id, c.year,  cct.cob_id, m.title_number,
 		  (SELECT CASE 
 									WHEN mck.is_big = 1 THEN 1 
-									WHEN mck.new_year = EXTRACT(YEAR FROM sysdate) THEN 2 
-									WHEN mck.new_year < EXTRACT(YEAR FROM sysdate) THEN 3 
-									WHEN mck.new_year > EXTRACT(YEAR FROM sysdate) THEN 4 
+									WHEN mck.new_year = EXTRACT(YEAR FROM c.dt) THEN 2 
+									WHEN mck.new_year < EXTRACT(YEAR FROM c.dt) THEN 3 
+									WHEN mck.new_year > EXTRACT(YEAR FROM c.dt) THEN 4 
 								end
 				FROM 
 					stroy.mv_cob_kind mck  where mck.id = cct.cob_id) cob_type
@@ -1220,10 +1221,10 @@ BEGIN
 		INNER JOIN stroy.title t ON t.title_number =  m.title_number
 		WHERE
 			t.year >= 2014
-			AND t.delete_date is null
+			--AND t.delete_date is null
 			AND t.stage_id = 95
 			AND t.title_type_id in (1,2,3)
-			AND t.state_id != 4
+			--AND t.state_id != 4
 			AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year || '-12-31','YYYY-MM-DD'))
 		)
 	LOOP
@@ -1233,7 +1234,8 @@ BEGIN
 	END LOOP;
 	commit;
 	END;
-	begin
+    
+	BEGIN
 	FOR x in 
 		(
 			with 
@@ -1275,7 +1277,7 @@ BEGIN
 	commit;
 	END;
 
-	begin
+	BEGIN
 	FOR x in 
 		(
 	  WITH dat as (
@@ -1325,14 +1327,12 @@ BEGIN
 		WHERE num_lag is null;
 	END;
 
+    SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+    DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+    COMMIT;
 
-
-            SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
-            INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
-            VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
-            DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
-            COMMIT;
-            NULL;
 END GET_EXTEND;
 
 -- загрузка GP
