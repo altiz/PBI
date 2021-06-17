@@ -1,10 +1,11 @@
-DROP TABLE StroyInvest.dbo.CALENDAR;
+DROP TABLE StroyInvest.dbo.CALENDAR; 
 CREATE TABLE StroyInvest.dbo.CALENDAR (
 	ID int NULL,
 	[YEAR] int NULL,
 	QUARTER int NULL,
 	[MONTH] int NULL,
-	[DAY] int NULL
+	[DAY] int NULL,
+	DT date NULL
 );
 
 DROP TABLE StroyInvest.dbo.MAIN;
@@ -14,7 +15,7 @@ CREATE TABLE StroyInvest.dbo.MAIN (
 	TITLE_NUMBER int NULL,
 	FINANCING_SOURCE_ID int NULL,
 	MSK_GOV_PROGRAM_ID int NULL,
-	EXTEND_ID int NULL,
+--	EXTEND_ID int NULL,
 	POWER_ID int NULL,
 	TITLE_STATE_ID int NULL,
 	VALUE_FULL float NULL,
@@ -36,11 +37,12 @@ CREATE TABLE StroyInvest.dbo.TITLE (
 DROP TABLE StroyInvest.dbo.EXTEND;
 CREATE TABLE StroyInvest.dbo.EXTEND  (
     ID int NOT NULL, 
+    MAIN_ID int NULL,
     START_CONSTR int NULL, 
     STOP_CONSTR int NULL, 
     NUM_LAG int NULL, 
     DELIVERY_DATE int NULL, 
-    YEAR_DP int NULL
+    COB_TYPE_ID        int NULL
 );
 
 DROP TABLE StroyInvest.dbo.POWER;    
@@ -50,6 +52,12 @@ CREATE TABLE StroyInvest.dbo.POWER
     RESULT_AIP_ID         int NULL
     );
     
+    DROP TABLE StroyInvest.dbo.MONTH;    
+    CREATE TABLE StroyInvest.dbo.MONTH
+   (ID    int NOT NULL, 
+    NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL
+    );
+
 DROP TABLE StroyInvest.dbo.FINANCING_SOURCE;    
 CREATE TABLE StroyInvest.dbo.FINANCING_SOURCE
     (
@@ -146,10 +154,10 @@ CREATE TABLE StroyInvest.dbo.COB
     ADDRESS                varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
     CENTER_LATITUDE        float NULL, 
     CENTER_LONGITUDE       float NULL,
-    COB_TYPE_ID        int NULL, 
-    START_YEAR        int NULL,
-    FINISH_YEAR        int NULL,
-    NEW_YEAR    int NULL,
+ --   COB_TYPE_ID        int NULL, 
+ --   START_YEAR        int NULL,
+ --   FINISH_YEAR        int NULL,
+   -- NEW_YEAR    int NULL,
     );  
 
 DROP TABLE StroyInvest.dbo.TITLE_STATE;    
