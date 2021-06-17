@@ -15,7 +15,7 @@ CREATE TABLE StroyInvest.dbo.MAIN (
 	TITLE_NUMBER int NULL,
 	FINANCING_SOURCE_ID int NULL,
 	MSK_GOV_PROGRAM_ID int NULL,
-	EXTEND_ID int NULL,
+--	EXTEND_ID int NULL,
 	POWER_ID int NULL,
 	TITLE_STATE_ID int NULL,
 	VALUE_FULL float NULL,
@@ -37,6 +37,7 @@ CREATE TABLE StroyInvest.dbo.TITLE (
 DROP TABLE StroyInvest.dbo.EXTEND;
 CREATE TABLE StroyInvest.dbo.EXTEND  (
     ID int NOT NULL, 
+    MAIN_ID int NULL,
     START_CONSTR int NULL, 
     STOP_CONSTR int NULL, 
     NUM_LAG int NULL, 
@@ -156,7 +157,7 @@ CREATE TABLE StroyInvest.dbo.COB
  --   COB_TYPE_ID        int NULL, 
  --   START_YEAR        int NULL,
  --   FINISH_YEAR        int NULL,
-    NEW_YEAR    int NULL,
+   -- NEW_YEAR    int NULL,
     );  
 
 DROP TABLE StroyInvest.dbo.TITLE_STATE;    

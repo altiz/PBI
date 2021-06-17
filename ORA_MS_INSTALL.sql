@@ -300,7 +300,7 @@ create or replace PACKAGE BODY PBI.GET_MSSQL_2V AS
 		DELETE FROM "dbo"."COB"@POWERBI;
 		COMMIT;
     
-		FOR v_rec IN (SELECT      id,   name,   address,  to_char(center_latitude,'099.99999'), to_char(center_longitude,'099.99999'), new_year FROM  pbi.COB) 
+		FOR v_rec IN (SELECT      id,   name,   address,  to_char(center_latitude,'099.99999'), to_char(center_longitude,'099.99999') FROM  pbi.COB) 
 		LOOP
 			INSERT INTO  "dbo"."COB"@POWERBI VALUES v_rec;
 			COMMIT;
@@ -407,7 +407,7 @@ create or replace PACKAGE BODY PBI.GET_MSSQL_2V AS
 		DELETE FROM "dbo"."MAIN"@POWERBI;
 		COMMIT;
     
-		FOR v_rec IN (SELECT  id,    calendar_id,    title_number,  financing_source_id,  msk_gov_program_id,    extend_id,    power_id,    title_state_id, to_char(value_full,'0999999999999.999999'), 
+		FOR v_rec IN (SELECT  id,    calendar_id,    title_number,  financing_source_id,  msk_gov_program_id,    power_id,    title_state_id, to_char(value_full,'0999999999999.999999'), 
 			to_char(value_done,'0999999999999.999999'), to_char(value_curr,'0999999999999.999999') 
 			FROM  pbi.main)
 		LOOP

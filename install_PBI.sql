@@ -1051,7 +1051,7 @@ BEGIN
         SELECT DISTINCT m.power_id, p.name, psp.result_aip_entity_id,
         DENSE_RANK() OVER (PARTITION BY psp.power_id ORDER BY psp.power_id, psp.result_aip_entity_id) AS rn
         FROM pbi.main m
-            INNER JOIN stroy.power_state_program psp ON psp.power_id = m.power_id
+            LEFT JOIN stroy.power_state_program psp ON psp.power_id = m.power_id
             INNER JOIN stroy.power p ON p.id = m.power_id
         WHERE m.power_id IS NOT NULL
     )
@@ -1181,144 +1181,157 @@ IS
     tmp_count NUMBER;
     com_ number := 0;
 BEGIN
-  /*  FOR x IN (SELECT  m.calendar_id, c.year,  cct.cob_id, m.title_number FROM pbi.main m
-                        inner join pbi.calendar c ON  m.calendar_id = c.id
-                        inner join stroy.cob_title cct ON  cct.title_number = m.title_number)
-                LOOP
-                    com_ := com_ + 1;
-                    n_extehd_id :=  pbi.seq_extend.nextval;
-                    BEGIN
-                         INSERT INTO extend (id, start_constr, stop_constr) 
-                        SELECT
-                            n_extehd_id, to_number(to_char(min(tt.start_date),'YYYY')), to_number(to_char(max(tt.end_date),'YYYY')) --into min_year, max_year
-                        FROM stroy.title t
-                            INNER JOIN stroy.title_term  tt on t.id=tt.title_id
-                            INNER JOIN pbi.calendar c ON c.id = x.calendar_id
-                            INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number
-                        WHERE 
-                             tt.title_term_type_id = 1
-                            AND t.stage_id = 95
-                            AND t.title_type_id in (1, 2, 3)
-                            AND t.year >= 2014
-                            AND ct.cob_id = x.cob_id
-                            AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'));
-                        
-                    EXCEPTION WHEN NO_DATA_FOUND THEN
-                        min_year := 0;
-                        max_year := 0;
-                    END;
+	INSERT INTO extend (id, start_constr, stop_constr, main_id)
+	SELECT pbi.seq_extend.nextval, min_, max_, id
+	FROM
+	(
+	SELECT 
+			 m.calendar_id, c.year,  ct.cob_id, m.title_number, to_number(to_char(min(tt.start_date),'YYYY')) min_, to_number(to_char(max(tt.end_date),'YYYY')) max_, m.id
+		FROM stroy.title t
+			INNER JOIN stroy.title_term  tt on t.id=tt.title_id
+			INNER JOIN stroy.cob_title ct ON ct.title_number = t.title_number   
+			INNER JOIN main m ON m.title_number = t.title_number 
+			inner join pbi.calendar c ON  m.calendar_id = c.id
+		WHERE 
+			 tt.title_term_type_id = 1
+			AND t.stage_id = 95
+			AND t.title_type_id in (1, 2, 3)
+			AND t.year >= 2014
+		  --  AND ct.cob_id = x.cob_id
+			AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
+			group by m.calendar_id, c.year,  ct.cob_id, m.title_number, m.id
+		);
+	begin
+	FOR x in 
+		(
+		SELECT  DISTINCT ex.id, m.calendar_id, c.year,  cct.cob_id, m.title_number,
+		  (SELECT CASE 
+									WHEN mck.is_big = 1 THEN 1 
+									WHEN mck.new_year = EXTRACT(YEAR FROM sysdate) THEN 2 
+									WHEN mck.new_year < EXTRACT(YEAR FROM sysdate) THEN 3 
+									WHEN mck.new_year > EXTRACT(YEAR FROM sysdate) THEN 4 
+								end
+				FROM 
+					stroy.mv_cob_kind mck  where mck.id = cct.cob_id) cob_type
+		FROM pbi.main m
+		INNER JOIN pbi.calendar c ON  m.calendar_id = c.id
+		INNER JOIN pbi.extend ex ON ex.main_id = m.id
+		INNER JOIN stroy.cob_title cct ON  cct.title_number = m.title_number
+		INNER JOIN stroy.title t ON t.title_number =  m.title_number
+		WHERE
+			t.year >= 2014
+			AND t.delete_date is null
+			AND t.stage_id = 95
+			AND t.title_type_id in (1,2,3)
+			AND t.state_id != 4
+			AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year || '-12-31','YYYY-MM-DD'))
+		)
+	LOOP
+		UPDATE extend
+		SET cob_type_id = x.cob_type
+		WHERE id = x.id;
+	END LOOP;
+	commit;
+	END;
+	begin
+	FOR x in 
+		(
+			with 
+				dat as (
+					SELECT t.year ,
+						t.id,
+						ex.id ex_id,
+						FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, t.year ORDER BY t.date_from desc) AS tmax,
+						ct.cob_id,
+						tt.end_date 
+					FROM stroy.cob_title ct 
+						LEFT JOIN stroy.title t ON t.title_number = ct.title_number 
+						LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1                                    
+						INNER JOIN main m ON m.title_number =  t.title_number
+						INNER JOIN  pbi.calendar c ON m.calendar_id = c.id
+						INNER JOIN extend ex ON ex.main_id = m.id
+					WHERE t.stage_id =95
+						AND t.state_id =3
+					 --   AND ct.cob_id = x.cob_id
+						AND t.year BETWEEN 2014 and 2022
+						AND t.year < c.year
+				),
+				dat1 AS (
+					SELECT dat.year, ex_id,
+						max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y--,
+						--COB_ID,
+					   -- FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
+					FROM dat
+					WHERE dat.id=tmax
+				)
+				select  ex_id, max(fin_y) d  from dat1
+				group by ex_id
+		)
+	LOOP
+		UPDATE extend
+		SET delivery_date = x.d
+		WHERE id = x.ex_id;
+	END LOOP;
+	commit;
+	END;
 
-                    tmp_k := 0;
+	begin
+	FOR x in 
+		(
+	  WITH dat as (
+			SELECT t."YEAR" ,  t.id,
+				FIRST_VALUE(t.id) OVER (PARTITION BY t.TITLE_NUMBER, t.year ORDER BY t.DATE_FROM desc) AS tmax,
+				ct.COB_ID,
+				ex.id ex_id,
+				tt.END_DATE,
+				CASE 
+					WHEN t.DELIVERY_DATE IS NULL THEN EXTRACT(YEAR FROM END_DATE)
+					ELSE EXTRACT (YEAR FROM t.DELIVERY_DATE)
+				END AS DY
+			FROM stroy.COB_TITLE ct 
+			LEFT JOIN stroy.TITLE t ON t.TITLE_NUMBER = ct.TITLE_NUMBER 
+			LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = t.ID AND tt.TITLE_TERM_TYPE_ID =1
+			INNER JOIN main m ON m.title_number = t.title_number 
+			INNER JOIN pbi.calendar c ON  m.calendar_id = c.id
+			INNER JOIN pbi.extend ex ON ex.main_id = m.id
+			WHERE t.STAGE_ID =95
+			  AND t.STATE_ID =3
+			  AND t."YEAR" BETWEEN 2014 and c.year
+			),
+			dat1 AS (
+			select dat."YEAR",
+			  max(DY) OVER(PARTITION BY cob_id, YEAR) as FIN_Y,
+			  COB_ID, ex_id,
+			  FIRST_VALUE(YEAR) over(PARTITION BY cob_id ORDER BY YEAR desc) AS CFY
+			FROM dat
+			WHERE dat.id=tmax
+			)
+			SELECT ex_id, COB_ID,
+			  COUNT(*) AS DR
+			FROM dat1
+			WHERE YEAR=FIN_Y
+			  AND fin_y<>cfy
+			GROUP BY ex_id, COB_ID
+		)
+	LOOP
+		UPDATE extend
+		SET num_lag = x.DR
+		WHERE id = x.ex_id;
+		
 
-                    FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
-                    LOOP 
-                    BEGIN
-                        with 
-                            dat as (
-                                SELECT t.year ,
-                                    t.id,
-                                    FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, year ORDER BY t.date_from desc) AS tmax,
-                                    ct.cob_id,
-                                    tt.end_date 
-                                FROM stroy.cob_title ct 
-                                    LEFT JOIN stroy.title t ON t.title_number = ct.title_number 
-                                    LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1
-                                WHERE t.stage_id =95
-                                    AND t.state_id =3
-                                    AND ct.cob_id = x.cob_id
-                                    AND t.year BETWEEN 2014 and 2022
-                                    AND  t.year < y.year
-                            ),
-                            dat1 AS (
-                                SELECT dat.year,
-                                    max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y,
-                                    COB_ID,
-                                    FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
-                                FROM dat
-                                WHERE dat.id=tmax
-                            ),
-                            dat2 AS (
-                                SELECT YEAR,
-                                    fin_y,
-                                    cob_id,
-                                    RANK() OVER(PARTITION BY cob_id ORDER BY year) AS DR
-                                FROM dat1
-                                WHERE YEAR=FIN_Y
-                                    --AND fin_y<>cfy
-                                GROUP BY YEAR,
-                                    fin_y,
-                                    cob_id
-                              --  ORDER BY cob_id
-                            )
-                        SELECT cob_id,  max(dr) INTO tmp_cob, tmp_k
-                        FROM dat2 
-                        GROUP BY 
-                          cob_id;
-                    --    ORDER BY cob_id;
-                    EXCEPTION WHEN NO_DATA_FOUND THEN
-                        tmp_k := 0;
-                    END;
-                    END LOOP;
-                                       
- --                   FOR y IN (SELECT dt, id, year FROM pbi.calendar WHERE id < x.calendar_id ORDER BY id)
- --                   LOOP 
-                    BEGIN
-                         with 
-                            dat as (
-                                SELECT t.year ,
-                                    t.id,
-                                    FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, year ORDER BY t.date_from desc) AS tmax,
-                                    ct.cob_id,
-                                    tt.end_date 
-                                FROM stroy.cob_title ct 
-                                    LEFT JOIN stroy.title t ON t.title_number = ct.title_number 
-                                    LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1
-                                WHERE t.stage_id =95
-                                    AND t.state_id =3
-                                    AND ct.cob_id = x.cob_id
-                                    AND t.year BETWEEN 2014 and 2022
-                                    AND t.year < x.year
-                            ),
-                            dat1 AS (
-                                SELECT dat.year,
-                                    max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y--,
-                                    --COB_ID,
-                                   -- FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
-                                FROM dat
-                                WHERE dat.id=tmax
-                            )
-                            select max(fin_y) INTO tmp_end_year from dat1;
-
-                    EXCEPTION WHEN NO_DATA_FOUND THEN
-                        tmp_k := 0;
-                    END;
-  --                  END LOOP;
-
- --                   INSERT INTO extend (id, start_constr, stop_constr, num_lag, delivery_date) 
---                    VALUES (n_extehd_id, min_year, max_year, tmp_k, tmp_end_year);
-                    UPDATE extend
-                    SET num_lag = tmp_k,
-                        delivery_date = tmp_end_year
-                    WHERE id = n_extehd_id;
-                    
-                    UPDATE main
-                    SET extend_id = n_extehd_id
-                    WHERE title_number = x.title_number
-                        AND calendar_id = x.calendar_id;
-
-                    if com_ = 1000 then 
-                        com_ := 0;
-                        commit;
-                    end if;
+	END LOOP;    
+		UPDATE extend
+		SET num_lag = 0
+		WHERE num_lag is null;
+	END;
 
 
-            END LOOP;
-            COMMIT;
+
             SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
             INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
             VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
             DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
-            COMMIT;*/
+            COMMIT;
             NULL;
 END GET_EXTEND;
 
@@ -1541,6 +1554,14 @@ BEGIN
     UPDATE main
     SET financing_source_id = 0
     WHERE financing_source_id is null;
+	
+	DELETE FROM  pbi.main
+	WHERE id in (
+		SELECT m.id 
+		FROM pbi.main m
+		WHERE m.calendar_id < (SELECT min(mm.calendar_id) FROM pbi.main mm WHERE mm.financing_source_id != 0 and mm.title_number = m.title_number)
+		AND m.power_id is not NULL
+		);
     
     COMMIT;
 --    EXECUTE IMMEDIATE 'CREATE INDEX title_number ON main(title_number)';
@@ -1823,8 +1844,6 @@ BEGIN
     GET_TITLE;
 /* create GET_FINANCING_SOURCE */
     GET_FINANCING_SOURCE;
-/* create GET_EXTEND */
---    GET_EXTEND;
 /* create GET_POWER */
     GET_POWER;
 /* create RESULT_AIP */
@@ -1896,6 +1915,11 @@ BEGIN
     to_char(dt,'MONTH','NLS_DATE_LANGUAGE = RUSSIAN')
     from calendar
     order by 1;
+	
+	COMMIT;
+	
+	/* create GET_EXTEND */
+   GET_EXTEND;
     
     COMMIT;
 END RUN;
