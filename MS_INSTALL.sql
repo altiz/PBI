@@ -181,4 +181,17 @@ CREATE TABLE StroyInvest.dbo.COB_TYPE
     NAME    varchar(4000) COLLATE Cyrillic_General_CI_AS NULL, 
     );
 
+DROP TABLE StroyInvest.dbo.AIP;    
+CREATE TABLE StroyInvest.dbo.AIP
+    (
+    ID    int NOT NULL, 
+    YEAR  int NULL, 
+    );
+	
+DROP TABLE StroyInvest.dbo.COB_AIP_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_AIP_LINK
+    (
+    COB_ID    int NOT NULL, 
+    AIP_ID    int NOT NULL,
+    );
     
