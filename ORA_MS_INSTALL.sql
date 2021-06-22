@@ -424,6 +424,37 @@ create or replace PACKAGE BODY PBI.GET_MSSQL_2V AS
         INSERT INTO pbi_log.log ( msg_type, metod, msg) 
         VALUES ( 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.MAIN: ' || to_char(test_count) || ' (ROWS)');
 		COMMIT;
+        
+        		-- INSERT MS SQL AIP
+		DELETE FROM "dbo"."AIP"@POWERBI;
+		COMMIT;
+
+		FOR v_rec IN (SELECT  * FROM  pbi.aip) 
+		LOOP
+			INSERT INTO  "dbo"."AIP"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."AIP"@POWERBI;
+        INSERT INTO pbi_log.log ( msg_type, metod, msg) 
+        VALUES ( 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.AIP: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+		
+		-- INSERT MS SQL COB_AIP_LINK
+		DELETE FROM "dbo"."COB_AIP_LINK"@POWERBI;
+		COMMIT;
+    
+		FOR v_rec IN (SELECT  * FROM  pbi.cob_aip_link) 
+		LOOP
+			INSERT INTO  "dbo"."COB_AIP_LINK"@POWERBI VALUES v_rec;
+			COMMIT;
+		END LOOP;
+
+        SELECT COUNT(*) INTO tmp_count FROM "dbo"."COB_AIP_LINK"@POWERBI;
+        INSERT INTO pbi_log.log ( msg_type, metod, msg) 
+        VALUES ( 'I', 'GET_MSSQL_2V.RUN', 'INSERT dbo.COB_AIP_LINK: ' || to_char(tmp_count) || ' (ROWS)');
+        COMMIT;
+        
 	end main_run;
 
 
@@ -477,4 +508,5 @@ create or replace PACKAGE BODY PBI.GET_MSSQL_2V AS
 		COMMIT;
 	end EXTEND_run;
 	
+    
 END GET_MSSQL_2V;
