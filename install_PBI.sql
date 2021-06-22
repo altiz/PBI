@@ -1884,8 +1884,7 @@ IS
     com_ number := 0;
 BEGIN
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.EXTEND ' ;
-
+  
     INSERT INTO extend (id, start_constr, stop_constr, main_id, cob_type_id)    
     SELECT pbi.seq_extend.nextval, min_, max_, id, 5
 	FROM
@@ -2101,22 +2100,36 @@ BEGIN
     from calendar
     order by 1;
     
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.AIP ' ;   
+    INSERT INTO AIP
+    SELECT  row_number() over (order by dat.YEAR desc) rn, dat.YEAR
+    FROM(
+    SELECT  distinct  t."YEAR" year
+        FROM stroy.cob_title ct 
+        JOIN stroy.title t ON t.title_number = ct.title_number 
+        WHERE 1=1
+          AND t."YEAR" >=2014
+          AND t.stage_id =95
+          AND t.state_id = 3
+          AND t.date_to IS NULL
+        GROUP BY ct.cob_id,
+           t."YEAR"
+    order by  t."YEAR" ) dat ;
+    
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_AIP_LINK ' ;
     INSERT INTO PBI.COB_AIP_LINK
-    SELECT ct.cob_id,   t."YEAR" 
+    SELECT ct.cob_id,  aip.id 
     FROM stroy.cob_title ct 
     JOIN stroy.title t ON t.title_number = ct.title_number 
+    JOIN pbi.aip aip ON  aip.year = t.year
     WHERE 1=1
       AND t."YEAR" >=2014
       AND t.stage_id =95
       AND t.state_id = 3
       AND t.date_to IS NULL
-    GROUP BY ct.cob_id,
+    ORDER BY ct.cob_id,
        t."YEAR";
     
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.AIP ' ;   
-    INSERT INTO AIP
-    SELECT pbi.seq_aip.nextval, aip_id FROM pbi.cob_aip_link;
 	
 	COMMIT;
 	
