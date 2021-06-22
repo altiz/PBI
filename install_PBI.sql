@@ -473,6 +473,43 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_DISTR_LINK.COB_ID IS ''' || 'Идентификатор объекта' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_DISTR_LINK.DISTR_ID IS ''' || 'Наименование района' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.DISTR  IS ''' || 'Табица связи объектов и административных районов для PBI' || '''';
+
+  /* CREATE COB_AIP_LINK*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'COB_AIP_LINK';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.COB_AIP_LINK CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.COB_AIP_LINK
+                                               (COB_ID NUMBER, 
+                                                AIP_ID NUMBER)';
+
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_AIP_LINK.COB_ID IS ''' || 'Идентификатор объекта' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_AIP_LINK.AIP_ID IS ''' || 'Идентификатор АИП' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.COB_AIP_LINK  IS ''' || 'Табица связи объектов и АИП для PBI' || '''';
+
+  /* CREATE AIP*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'AIP';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.AIP CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.AIP
+                                               (ID NUMBER, 
+                                                YEAR NUMBER)';
+
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.AIP.ID IS ''' || 'Идентификатор АИП' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.AIP.YEAR IS ''' || 'Наименование района' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.AIP  IS ''' || 'Табица АИП для PBI' || '''';   
+   
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_AIP';
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_AIP';
+    END IF; 
+   EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_AIP  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
+   
 END;
 /
 create or replace PACKAGE GET_PBI_2V AS 
@@ -495,6 +532,10 @@ PROCEDURE GET_FINANCING_SOURCE;
 
 /* create GET_EXTEND */
 PROCEDURE GET_EXTEND;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/* create GET_EXTEND_BOM */
+PROCEDURE GET_EXTEND_BOM;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* RUN */
@@ -1827,6 +1868,146 @@ BEGIN
     COMMIT;
 END NO_COB ;
 
+/* create GET_EXTEND_BOM */
+PROCEDURE GET_EXTEND_BOM
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    min_year NUMBER;
+    max_year NUMBER;
+    n_extehd_id NUMBER;
+    tmp_max number;
+    tmp_year number;
+    tmp_k number;
+    tmp_cob number;
+    tmp_end_year number;
+    tmp_count NUMBER;
+    com_ number := 0;
+BEGIN
+BEGIN
+  
+    INSERT INTO extend (id, start_constr, stop_constr, main_id, cob_type_id)    
+    SELECT pbi.seq_extend.nextval, min_, max_, id, 5
+	FROM
+	(
+	SELECT 
+			 m.calendar_id, c.year,  ct.id cob_id, m.title_number, to_number(to_char(min(tt.start_date),'YYYY')) min_, to_number(to_char(max(tt.end_date),'YYYY')) max_, m.id
+		FROM stroy.title t
+            inner join pbi.title tt ON tt.title_number = t.title_number
+			INNER JOIN stroy.title_term  tt on t.id=tt.title_id
+			INNER JOIN cob ct ON ct.id = tt.cob_id   
+			INNER JOIN main m ON m.title_number = t.title_number 
+			inner join pbi.calendar c ON  m.calendar_id = c.id
+		WHERE 
+			 tt.title_term_type_id = 1
+			AND t.stage_id = 95
+			AND t.title_type_id in (1, 2, 3)
+			AND t.year >= 2014
+            AND tt.cob_id >= 1000000
+		  --  AND ct.cob_id = x.cob_id
+			AND c.dt BETWEEN   t.date_from and  nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))
+			group by m.calendar_id, c.year,  ct.id, m.title_number, m.id
+		);
+
+	FOR x in 
+		(
+	with 
+				dat as (
+					SELECT t.year ,
+						t.id,
+						ex.id ex_id,
+						FIRST_VALUE(t.id) OVER (PARTITION BY t.title_number, t.year ORDER BY t.date_from desc) AS tmax,
+                        tt.cob_id,
+						tt.end_date 
+					FROM stroy.title t 
+						LEFT JOIN stroy.title_term tt ON tt.Title_Id = t.ID AND tt.title_term_type_id =1                                    
+						INNER JOIN main m ON m.title_number =  t.title_number
+                        INNER JOIN pbi.title tt ON tt.title_number = t.title_number
+						INNER JOIN  pbi.calendar c ON m.calendar_id = c.id
+						INNER JOIN extend ex ON ex.main_id = m.id
+					WHERE t.stage_id =95
+						AND t.state_id =3
+                         AND tt.cob_id >= 1000000
+						AND t.year BETWEEN 2014 and 2022
+						AND t.year < c.year
+				),
+				dat1 AS (
+					SELECT dat.year, ex_id,
+						max(EXTRACT(YEAR FROM end_date)) OVER(PARTITION BY cob_id, year) as fin_y--,
+						--COB_ID,
+					   -- FIRST_VALUE(year) over(PARTITION BY cob_id ORDER BY year desc) AS cfy
+					FROM dat
+					WHERE dat.id=tmax
+				)
+				select  ex_id, max(fin_y) d  from dat1
+				group by ex_id
+    		)
+	LOOP
+		UPDATE extend
+		SET delivery_date = x.d
+		WHERE id = x.ex_id;
+	END LOOP;
+	commit;
+
+	FOR x in 
+		( 
+  WITH dat as (
+			SELECT t."YEAR" ,  t.id,
+				FIRST_VALUE(t.id) OVER (PARTITION BY t.TITLE_NUMBER, t.year ORDER BY t.DATE_FROM desc) AS tmax,
+				tt.COB_ID,
+				ex.id ex_id,
+				tt.END_DATE,
+				CASE 
+					WHEN t.DELIVERY_DATE IS NULL THEN EXTRACT(YEAR FROM END_DATE)
+					ELSE EXTRACT (YEAR FROM t.DELIVERY_DATE)
+				END AS DY
+			FROM stroy.TITLE t 
+			LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = t.ID AND tt.TITLE_TERM_TYPE_ID =1
+			INNER JOIN main m ON m.title_number = t.title_number 
+			INNER JOIN pbi.calendar c ON  m.calendar_id = c.id
+            INNER JOIN pbi.title tt ON tt.title_number = t.title_number
+			INNER JOIN pbi.extend ex ON ex.main_id = m.id
+			WHERE t.STAGE_ID =95
+			  AND t.STATE_ID =3
+              AND tt.cob_id >= 1000000
+			  AND t."YEAR" BETWEEN 2014 and c.year
+			),
+			dat1 AS (
+			select dat."YEAR",
+			  max(DY) OVER(PARTITION BY cob_id, YEAR) as FIN_Y,
+			  COB_ID, ex_id,
+			  FIRST_VALUE(YEAR) over(PARTITION BY cob_id ORDER BY YEAR desc) AS CFY
+			FROM dat
+			WHERE dat.id=tmax
+			)
+			SELECT ex_id, COB_ID,
+			  COUNT(*) AS DR
+			FROM dat1
+			WHERE YEAR=FIN_Y
+			  AND fin_y<>cfy
+			GROUP BY ex_id, COB_ID
+		)
+	LOOP
+		UPDATE extend
+		SET num_lag = x.DR
+		WHERE id = x.ex_id;
+		
+
+	END LOOP;    
+		UPDATE extend
+		SET num_lag = 0
+		WHERE num_lag is null;
+	END;
+    
+
+    SELECT COUNT(*) INTO tmp_count FROM pbi.extend;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+    DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
+    COMMIT;
+
+END GET_EXTEND_BOM;
+
+
 /* RUN */
 PROCEDURE RUN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1909,17 +2090,54 @@ BEGIN
     INSERT INTO PBI.COB_TYPE 
     SELECT id, name from STROY.COB_TYPE;
     
+    INSERT INTO pbi.cob_type ( id, name)
+    VALUES (5,  'Не распределенные');
+    
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MONTH ' ;
     INSERT INTO  MONTH 
     SELECT DISTINCT EXTRACT(MONTH FROM dt),
     to_char(dt,'MONTH','NLS_DATE_LANGUAGE = RUSSIAN')
     from calendar
     order by 1;
+    
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.AIP ' ;   
+    INSERT INTO AIP
+    SELECT  row_number() over (order by dat.YEAR desc) rn, dat.YEAR
+    FROM(
+    SELECT  distinct  t."YEAR" year
+        FROM stroy.cob_title ct 
+        JOIN stroy.title t ON t.title_number = ct.title_number 
+        WHERE 1=1
+          AND t."YEAR" >=2014
+          AND t.stage_id =95
+          AND t.state_id = 3
+          AND t.date_to IS NULL
+        GROUP BY ct.cob_id,
+           t."YEAR"
+    order by  t."YEAR" ) dat ;
+    
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_AIP_LINK ' ;
+    INSERT INTO PBI.COB_AIP_LINK
+    SELECT ct.cob_id,  aip.id 
+    FROM stroy.cob_title ct 
+    JOIN stroy.title t ON t.title_number = ct.title_number 
+    JOIN pbi.aip aip ON  aip.year = t.year
+    WHERE 1=1
+      AND t."YEAR" >=2014
+      AND t.stage_id =95
+      AND t.state_id = 3
+      AND t.date_to IS NULL
+    ORDER BY ct.cob_id,
+       t."YEAR";
+    
 	
 	COMMIT;
 	
 	/* create GET_EXTEND */
    GET_EXTEND;
+   
+/* create GET_EXTEND_BOM */
+    GET_EXTEND_BOM;
     
     COMMIT;
 END RUN;
