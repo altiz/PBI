@@ -110,10 +110,10 @@ BEGIN
                                                 MONTH NUMBER, 
                                                 DAY NUMBER, 
                                                 DT DATE,
-                                                CONSTRAINT C_CALENDAR_PK PRIMARY KEY (ID))';
-	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT ON PBI.CALENDAR (DT)';
-	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT_ID ON PBI.CALENDAR (DT, ID)';
-	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_YEAR_ID ON PBI.CALENDAR (YEAR, ID)';
+                                                CONSTRAINT C_CALENDAR_PK_ PRIMARY KEY (ID))';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT_ ON PBI.CALENDAR (DT)';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_DT_ID_ ON PBI.CALENDAR (DT, ID)';
+	EXECUTE IMMEDIATE 'CREATE INDEX PBI.INX_CALENDAR_YEAR_ID_ ON PBI.CALENDAR (YEAR, ID)';
 
 
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.CALENDAR.ID IS ''' || 'Идентификатор календаря' || '''';
@@ -1496,6 +1496,7 @@ CURSOR title is
 -- 24.05.2021 выпилил по новым условиям
             --Concat(bic.budget_classifier_id, ec.code) AS MS,
             dat.msk_gov_program_id AS MS,
+            bc.EXPENCE_KIND,
             dat.title_number,
             biv.value,
             biv.build_indicator_value_type_id         AS VALUE_TYPE,
@@ -1517,6 +1518,7 @@ CURSOR title is
                 AND biv.quarter_number IS NULL
             left join stroy.msk_gov_program mgp ON mgp.id = dat.msk_gov_program_id
             left join stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
+            left join stroy.budget_classifier bc ON bc.id = bic.BUDGET_CLASSIFIER_ID
             left join stroy.economical_classifier ec ON ec.id = bic.economical_classifier_id
             left join stroy.power p ON p.id = bic.power_id
         ),
