@@ -1,3 +1,43 @@
+DECLARE 
+    tmp_current_user varchar2(64);
+    tmp_is_objects number;
+BEGIN
+   
+    SELECT username INTO tmp_current_user FROM user_users;
+    
+ /* CREATE GRBS*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'GRBS';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.GRBS CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.GRBS  (
+                                                COB_ID NUMBER(10,0),
+												NAME VARCHAR2(4000)
+                                                )
+                                                TABLESPACE USERS';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GRBS.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GRBS.NAME IS ''' || 'Название ГРБС' || '''';
+
+ /* CREATE PREGRBS*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'PREGRBS';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.PREGRBS CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.PREGRBS  (
+                                                COB_ID NUMBER(10,0),
+												NAME VARCHAR2(4000)
+                                                )
+                                                TABLESPACE USERS';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.PREGRBS.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.PREGRBS.NAME IS ''' || 'Название Заказчика' || '''';
+
+END;
 
 begin
     EXECUTE IMMEDIATE 'drop table PBI.TMP_TITLE_IOT';
@@ -534,4 +574,94 @@ BEGIN
 END;
 
  
+DECLARE
+     tmp_count number;
+     tmp number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.GRBS ' ;
+    INSERT INTO pbi.grbs  
+    WITH
+    dat2 as
+        (
+                  SELECT st.title_address, t.title_number, t.id title_id
+                FROM stroy.title st,
+                        stroy.title t ,
+                        (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
+                        FROM stroy.title stt
+                        WHERE
+                            stt.year >= 2014
+                            AND stt.stage_id = 95
+                            AND stt.state_id = 3
+                        ) dat                
+                    WHERE   
+                         st.id = dat.id
+                         and st.title_number = t.title_number
+                         AND dat.rn = 1
+            )
+    SELECT ct.cob_id,
+        o.full_name
+    FROM stroy.cob_title ct 
+        JOIN stroy.title t ON t.title_number = ct.Title_Number 
+        JOIN dat2 ON dat2.title_id = t.id
+        JOIN stroy.title_subject_org tso ON tso.title_id = t.ID 
+            AND tso.Organization_Role_Type_Id = 2
+            AND tso.is_main = 'Y'
+        JOIN stroy.organization o ON o.ID = tso.organization_id 
+    WHERE 1=1
+    GROUP BY ct.cob_id , o.full_name;
+/*	INSERT INTO v3_main_pp_link (main_id, pp_id) 
+	SELECT id, 1 FROM main WHERE power_id is null
+	minus
+	SELECT main_id, 1 FROM v3_main_pp_link;
+	COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.main_pp_link;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');*/
+END;
+
+
+DECLARE
+     tmp_count number;
+     tmp number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PREGRBS ' ;
+    INSERT INTO pbi.pregrbs  
+    WITH
+    dat2 as
+        (
+                  SELECT st.title_address, t.title_number, t.id title_id
+                FROM stroy.title st,
+                        stroy.title t ,
+                        (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
+                        FROM stroy.title stt
+                        WHERE
+                            stt.year >= 2014
+                            AND stt.stage_id = 95
+                            AND stt.state_id = 3
+                        ) dat                
+                    WHERE   
+                         st.id = dat.id
+                         and st.title_number = t.title_number
+                         AND dat.rn = 1
+            )
+    SELECT ct.cob_id,
+        o.full_name
+    FROM stroy.cob_title ct 
+        JOIN stroy.title t ON t.title_number = ct.Title_Number 
+        JOIN dat2 ON dat2.title_id = t.id
+        JOIN stroy.title_subject_org tso ON tso.title_id = t.ID 
+            AND tso.Organization_Role_Type_Id = 3
+    --      AND tso.is_main = 'Y'
+        JOIN stroy.organization o ON o.ID = tso.organization_id 
+    WHERE 1=1
+    GROUP BY ct.cob_id , o.full_name;
+/*	INSERT INTO v3_main_pp_link (main_id, pp_id) 
+	SELECT id, 1 FROM main WHERE power_id is null
+	minus
+	SELECT main_id, 1 FROM v3_main_pp_link;
+	COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.main_pp_link;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.GET_MAIN_PP_LINK', 'INSERT PBI.MAIN_PP_LINK: ' || to_char(tmp_count) || ' (ROWS)');*/
+END;
 
