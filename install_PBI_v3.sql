@@ -171,7 +171,13 @@ BEGIN
                                         )
                                             TABLESPACE USERS';
                                                 
-    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.V3_MAIN  IS ''' || 'Временная таблица' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.V3_MAIN  IS ''' || 'Основная таблица' || '''';
+    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_V3_MAIN';
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_V3_MAIN';
+    END IF; 
+   EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_V3_MAIN  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
     
     /* CREATE COB_PP_LINK*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -212,9 +218,22 @@ BEGIN
                                                 MAIN_ID NUMBER(10,0),
 												CALENDAR_ID NUMBER(10,0)
                                                 )
-                                                TABLESPACE USERS';
+                                                TABLESPACE USERS';      
+                                                
 END;
 /**********************************************************************************************************/
+/
+create or replace trigger PBI.NEWID_V3_MAIN 
+                 BEFORE INSERT ON PBI.TMP_$1_MAIN 
+                 FOR EACH ROW 
+                 BEGIN  
+                 if inserting then   
+                 if :NEW.ID is null or :NEW.ID<=0 then  
+                 select PBI.SEQ_MAIN.nextval into :NEW.ID from dual;   
+                 end if; 
+                 end if; 
+                 end;
+/**********************************************************************************************************/                                         
 /
 create or replace PACKAGE GET_PBI_3V AS 
 
@@ -531,8 +550,6 @@ BEGIN
     IF tmp_constraints > 0 THEN
         EXECUTE IMMEDIATE 'ALTER TABLE V3_MAIN DROP CONSTRAINT INX_V3_MAIN_PK';
     END IF;
-    EXECUTE IMMEDIATE 'ALTER TABLE PBI.V3_MAIN ADD CONSTRAINT INX_V3_MAIN_PK PRIMARY KEY (ID)';
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.V3_MAIN' ;
     INSERT INTO v3_main (    id,    title_number,    financing_source_id,    msk_gov_program_id,    power_id,    title_state_id,    start_constr,   stop_constr,   cob_type_id,   value_full,   value_done,   value_curr,    num_lag,    d_year)
     SELECT distinct   dr,  title_number,  financing_source_id,  msk_gov_program_id, power_id, title_state_id,  start_constr,  stop_constr,  cob_type_id, value_full,  value_done,   value_curr, null,  d_year
     FROM   TMP_$2_MAIN;
@@ -543,16 +560,26 @@ BEGIN
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
     VALUES ('I', 'GET_PBI_2V.V3_MAIN', 'INSERT PBI.V3_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
 
+-- сборка индексов
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK';
+    IF tmp_constraints > 0 THEN
+           EXECUTE IMMEDIATE 'DROP INDEX PBI.INX_MAIN_CALENDAR_LINK';
+    END IF;
+
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'MAIN_CALENDAR_LINK_ALT';
+    IF tmp_constraints > 0 THEN
+            EXECUTE IMMEDIATE 'DROP INDEX PBI.INX_MAIN_CALENDAR_LINK_ALT';
+    END IF;
+	commit;
+
 -- склейка календаря
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_CALENDAR_LINK' ;
-    EXECUTE IMMEDIATE 'DROP INDEX "PBI"."INX_MAIN_CALENDAR_LINK"';
     INSERT INTO main_calendar_link 
     SELECT distinct dr, calendar_id FROM  TMP_$2_MAIN;
     commit;
 
 --усеченная склейка календаря
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_CALENDAR_LINK_ALT' ;
-    EXECUTE IMMEDIATE 'DROP INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT"';
     INSERT INTO main_calendar_link_alt
     SELECT m_id, cal_id FROM 
     (
@@ -564,12 +591,12 @@ BEGIN
 commit;
 -- сборка индексов
     SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK';
-    IF tmp_constraints > 0 THEN
+    IF tmp_constraints = 0 THEN
        EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK" ON "PBI"."MAIN_CALENDAR_LINK" ("CALENDAR_ID", "MAIN_ID")';
     END IF;
 
     SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'MAIN_CALENDAR_LINK_ALT';
-    IF tmp_constraints > 0 THEN
+    IF tmp_constraints = 0 THEN
         EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT" ON "PBI"."MAIN_CALENDAR_LINK_ALT" ("CALENDAR_ID", "MAIN_ID")';
     END IF;
 	commit;
@@ -795,11 +822,12 @@ PROCEDURE RUN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
 BEGIN
-    /* create TMP_$_TITLE_IOT */
-    GET_TMP_$_TITLE_IOT;
     
     /* create V3_CALENDAR */
     GET_V3_CALENDAR;
+    
+    /* create TMP_$_TITLE_IOT */
+    GET_TMP_$_TITLE_IOT;                        
     
     /* create TMP_$1_MAIN */
     GET_TMP_$1_MAIN;
