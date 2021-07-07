@@ -4,6 +4,23 @@ DECLARE
 BEGIN
    
     SELECT username INTO tmp_current_user FROM user_users;
+ 
+  /* CREATE PPM*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'PPM';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.PPM CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.PPM  (
+                                                CALENDAR_ID NUMBER, 
+                                                VALUE NUMBER, 
+                                                YEAR NUMBER, 
+                                                IS_CURR NUMBER, 
+                                                DOC_NUMBER VARCHAR2(4000 BYTE)
+                                                )
+                                                TABLESPACE USERS';
+ 
     
  /* CREATE GRBS*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -13,13 +30,28 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.GRBS CASCADE CONSTRAINTS';
     END IF;
     EXECUTE IMMEDIATE 'CREATE TABLE PBI.GRBS  (
-                                                COB_ID NUMBER(10,0),
+                                                ID NUMBER(10,0),
 												NAME VARCHAR2(4000)
                                                 )
                                                 TABLESPACE USERS';
                                                 
-    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GRBS.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GRBS.NAME IS ''' || 'Название ГРБС' || '''';
+    
+ /* CREATE COB_GRBS_LINK*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'COB_GRBS_LINK';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.COB_GRBS_LINK CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.COB_GRBS_LINK  (
+                                                COB_ID NUMBER(10,0),
+												GRBS_ID NUMBER(10,0)
+                                                )
+                                                TABLESPACE USERS';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_GRBS_LINK.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_GRBS_LINK.GRBS_ID IS ''' || 'Внешний ключ на таблицу ГРБС' || '''';
 
  /* CREATE PREGRBS*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -29,39 +61,29 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.PREGRBS CASCADE CONSTRAINTS';
     END IF;
     EXECUTE IMMEDIATE 'CREATE TABLE PBI.PREGRBS  (
-                                                COB_ID NUMBER(10,0),
+                                                ID NUMBER(10,0),
 												NAME VARCHAR2(4000)
                                                 )
                                                 TABLESPACE USERS';
                                                 
-    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.PREGRBS.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.PREGRBS.NAME IS ''' || 'Название Заказчика' || '''';
-    
-     /* CREATE TMP_$_TITLE_IOT*/    
+
+     /* CREATE PREGRBS*/    
 --------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TMP_$_TITLE_IOT';
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'COB_PREGRBS_LINK';
     
     IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$_TITLE_IOT CASCADE CONSTRAINTS';
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.COB_PREGRBS_LINK CASCADE CONSTRAINTS';
     END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$_TITLE_IOT
-                                           (TITLE_ID NUMBER, 
-                                            TITLE_NUMBER NUMBER, 
-                                            YEAR NUMBER,
-                                            MSK_GOV_PROGRAM_ID NUMBER,
-                                            CALENDAR_ID NUMBER,
-                                            STATE_ID NUMBER,
-                                            COB_ID NUMBER,
-                                            COB_TYPE NUMBER,
-                                            DATE_FROM DATE, 
-                                            DATE_TO DATE,    
-                                            DATE_MIN NUMBER, 
-                                            DATE_MAX NUMBER,
-                                            D_YEAR NUMBER,
-                                            CONSTRAINT TMP_$_TITLE_IOT_PK PRIMARY KEY (TITLE_ID, CALENDAR_ID))
-                                            ORGANIZATION INDEX';
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.COB_PREGRBS_LINK  (
+                                                COB_ID NUMBER(10,0),
+												PREGRBS_ID NUMBER(10)
+                                                )
+                                                TABLESPACE USERS';
                                                 
-    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$_TITLE_IOT  IS ''' || 'Временная таблица титулов' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_PREGRBS_LINK.COB_ID IS ''' || '	Внешний ключ на таблицу COB' || '''';
+    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.COB_PREGRBS_LINK.PREGRBS_ID IS ''' || 'Внешний ключ на таблицу Заказчика' || '''';   
+  
 
      /* CREATE GET_V3_CALENDAR*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -88,96 +110,6 @@ BEGIN
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.V3_CALENDAR.MONTH IS ''' || 'Месяц календаря' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.V3_CALENDAR.DAY IS ''' || 'Последний день месяца' || '''';
     EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.V3_CALENDAR  IS ''' || 'Табица календаря для PBI' || '''';
-
-     /* CREATE TMP_$1_MAIN*/    
---------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TMP_$1_MAIN';
-    
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$1_MAIN CASCADE CONSTRAINTS';
-    END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$1_MAIN
-                                           (    ID NUMBER, 
-                                                CALENDAR_ID NUMBER, 
-                                                TITLE_NUMBER NUMBER, 
-                                                FINANCING_SOURCE_ID NUMBER, 
-                                                MSK_GOV_PROGRAM_ID NUMBER, 
-                                                POWER_ID NUMBER, 
-                                                TITLE_STATE_ID NUMBER, 
-                                                START_CONSTR NUMBER, 
-                                                STOP_CONSTR NUMBER, 
-                                                COB_TYPE_ID NUMBER, 
-                                                VALUE_FULL NUMBER, 
-                                                VALUE_DONE NUMBER, 
-                                                VALUE_CURR NUMBER, 
-                                                D_YEAR NUMBER(10,0)
-                                            )
-                                              TABLESPACE USERS';
-                                                
-    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$1_MAIN  IS ''' || 'Временная таблица' || '''';
-    
-         /* CREATE TMP_$2_MAIN*/    
---------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TMP_$2_MAIN';
-    
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$2_MAIN CASCADE CONSTRAINTS';
-    END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$2_MAIN
-                                           (        ID NUMBER NOT NULL ENABLE, 
-                                                    CALENDAR_ID NUMBER, 
-                                                    DR NUMBER, 
-                                                    TITLE_NUMBER NUMBER, 
-                                                    FINANCING_SOURCE_ID NUMBER, 
-                                                    MSK_GOV_PROGRAM_ID NUMBER, 
-                                                    POWER_ID NUMBER, 
-                                                    TITLE_STATE_ID NUMBER, 
-                                                    START_CONSTR NUMBER, 
-                                                    STOP_CONSTR NUMBER, 
-                                                    COB_TYPE_ID NUMBER, 
-                                                    VALUE_FULL NUMBER, 
-                                                    VALUE_DONE NUMBER, 
-                                                    VALUE_CURR NUMBER, 
-                                                    D_YEAR NUMBER(10,0)
-                                                   )  
-                                                  TABLESPACE USERS';
-                                                
-    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$2_MAIN  IS ''' || 'Временная таблица' || '''';
-    
-/* CREATE V3_MAIN*/    
---------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'V3_MAIN';
-    
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.V3_MAIN CASCADE CONSTRAINTS';
-    END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.V3_MAIN
-                                           ( ID NUMBER NOT NULL ENABLE, 
-                                            CALENDAR_ID NUMBER, 
-                                            TITLE_NUMBER NUMBER, 
-                                            FINANCING_SOURCE_ID NUMBER,
-                                            MSK_GOV_PROGRAM_ID NUMBER, 
-                                            EXTEND_ID NUMBER, 
-                                            POWER_ID NUMBER, 
-                                            TITLE_STATE_ID NUMBER, 
-                                            START_CONSTR NUMBER, 
-                                            STOP_CONSTR NUMBER, 
-                                            COB_TYPE_ID        NUMBER,
-                                            D_YEAR NUMBER,
-                                            NUM_LAG NUMBER,
-                                            VALUE_FULL NUMBER, 
-                                            VALUE_DONE NUMBER, 
-                                            VALUE_CURR NUMBER
-                                        )
-                                            TABLESPACE USERS';
-                                                
-    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.V3_MAIN  IS ''' || 'Основная таблица' || '''';
-    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = tmp_current_user AND sequence_name = 'SEQ_V3_MAIN';
-    IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_V3_MAIN';
-    END IF; 
-   EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_V3_MAIN  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
     
     /* CREATE COB_PP_LINK*/    
 --------------------------------------------------------------------------------------------------------------    
@@ -205,36 +137,56 @@ BEGIN
                                                 MAIN_ID NUMBER(10,0),
 												CALENDAR_ID NUMBER(10,0)
                                                 )
-                                                TABLESPACE USERS';                                                
-
-    /* CREATE MAIN_CALENDAR_LINK*/    
+                                                TABLESPACE USERS';                 
+                                                
+ /* CREATE V3_EXTEND*/    
 --------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'MAIN_CALENDAR_LINK';
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'V3_EXTEND';
     
     IF tmp_is_objects != 0 THEN
-        EXECUTE IMMEDIATE 'DROP TABLE  PBI.MAIN_CALENDAR_LINK CASCADE CONSTRAINTS';
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.V3_EXTEND CASCADE CONSTRAINTS';
     END IF;
-    EXECUTE IMMEDIATE 'CREATE TABLE PBI.MAIN_CALENDAR_LINK  (
-                                                MAIN_ID NUMBER(10,0),
-												CALENDAR_ID NUMBER(10,0)
-                                                )
-                                                TABLESPACE USERS';      
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.V3_EXTEND  (
+                                                COB_ID NUMBER, 
+                                                ID NUMBER, 
+                                                COB_TYPE_ID NUMBER, 
+                                                IS_CONTR NUMBER, 
+                                                D_YEAR NUMBER, 
+                                                STOP_CONSTR NUMBER, 
+                                                START_CONSTR NUMBER, 
+                                                M_DATE NUMBER, 
+                                                NUM_LAG NUMBER, 
+                                                EXTEND_ID NUMBER
+                                               )  
+                                               TABLESPACE USERS';                                                          
+
+ /* CREATE V3_EXTEND*/    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'V4_MAIN';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.V4_MAIN CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.V4_MAIN  (
+                                                ID NUMBER, 
+                                                TITLE_NUMBER NUMBER, 
+                                                FINANCING_SOURCE_ID NUMBER, 
+                                                MSK_GOV_PROGRAM_ID NUMBER, 
+                                                POWER_ID NUMBER, 
+                                                TITLE_STATE_ID NUMBER, 
+                                                VALUE_FULL NUMBER, 
+                                                VALUE_DONE NUMBER, 
+                                               -- VALUE_CURR NUMBER, 
+                                                VALUE_CONTR NUMBER, 
+                                                M_DATE NUMBER, 
+                                                EXTEND_ID NUMBER
+                                               )  
+                                               TABLESPACE USERS';   
                                                 
 END;
 /**********************************************************************************************************/
 /
-create or replace trigger PBI.NEWID_V3_MAIN 
-                 BEFORE INSERT ON PBI.TMP_$1_MAIN 
-                 FOR EACH ROW 
-                 BEGIN  
-                 if inserting then   
-                 if :NEW.ID is null or :NEW.ID<=0 then  
-                 select PBI.SEQ_MAIN.nextval into :NEW.ID from dual;   
-                 end if; 
-                 end if; 
-                 end;
-/**********************************************************************************************************/                                         
-/
+
 create or replace PACKAGE GET_PBI_3V AS 
 
 /* create TMP_$_TITLE_IOT */
@@ -257,9 +209,6 @@ PROCEDURE GET_TMP_$2_MAIN;
 PROCEDURE GET_V3_MAIN;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
-/*create TMP_$3_MAIN */
-PROCEDURE GET_NUM_LAG;
------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*create COB_PP_LINK */
 PROCEDURE GET_COB_PP_LINK;
@@ -271,6 +220,22 @@ PROCEDURE GET_GRBS;
 
 /*create PREGRBS */
 PROCEDURE GET_PREGRBS;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*create V3_EXTEND */
+PROCEDURE GET_V3_EXTEND;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*create V4_MAIN */
+PROCEDURE GET_V4_MAIN;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*create DELETE */
+PROCEDURE DELETE_FINAL;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*create GET_PPM */
+PROCEDURE GET_PPM;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*запуск сборки */
@@ -288,9 +253,35 @@ PROCEDURE GET_TMP_$_TITLE_IOT
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
     tmp_count number;
+    tmp_is_objects  number;
 BEGIN
+   
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$_TITLE_IOT';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$_TITLE_IOT CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$_TITLE_IOT
+                                           (TITLE_ID NUMBER, 
+                                            TITLE_NUMBER NUMBER, 
+                                            YEAR NUMBER,
+                                            MSK_GOV_PROGRAM_ID NUMBER,
+                                            CALENDAR_ID NUMBER,
+                                            STATE_ID NUMBER,
+                                            COB_ID NUMBER,
+                                            COB_TYPE NUMBER,
+                                            DATE_FROM DATE, 
+                                            DATE_TO DATE,    
+                                            DATE_MIN NUMBER, 
+                                            DATE_MAX NUMBER,
+                                            D_YEAR NUMBER,
+                                            CONSTRAINT TMP_$_TITLE_IOT_PK PRIMARY KEY (TITLE_ID, CALENDAR_ID))
+                                            ORGANIZATION INDEX';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$_TITLE_IOT  IS ''' || 'Временная таблица титулов' || '''';
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TMP_$_TITLE_IOT ' ;
-    INSERT INTO pbi.TMP_$_TITLE_IOT
+    EXECUTE IMMEDIATE 'INSERT INTO pbi.TMP_$_TITLE_IOT
     SELECT title_id, title_number, year, msk_gov_program_id, calendar_id, state_id, cob_id, 
                  (SELECT CASE 
                                         WHEN mck.is_big = 1 THEN 1 
@@ -315,16 +306,12 @@ BEGIN
             AND t.delete_date is null
             AND t.stage_id = 95
             AND t.title_type_id in (1,2,3)
-            AND c.dt between t.date_from and nvl(t.date_to, to_date(to_char(t.year) || '-12-31','YYYY-MM-DD'))
+            AND c.dt between t.date_from and nvl(t.date_to, to_date(to_char(t.year) || ''-12-31'',''YYYY-MM-DD''))
             AND t.state_id != 4
         GROUP BY t.id, t.title_number, t.year, t.msk_gov_program_id, c.id, t.state_id, cct.cob_id, t.date_from, t.date_to, c.dt, t.delivery_date
     )
     WHERE rn = 1
-    ORDER BY title_number, calendar_id;
-    commit;
-    SELECT COUNT(*) INTO tmp_count FROM pbi.TMP_$_TITLE_IOT;
-    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
-    VALUES ('I', 'GET_PBI_2V.TMP_$_TITLE_IOT', 'INSERT PBI.TMP_$_TITLE_IOT: ' || to_char(tmp_count) || ' (ROWS)');
+    ORDER BY title_number, calendar_id';
     commit;
 END GET_TMP_$_TITLE_IOT;
 
@@ -359,13 +346,58 @@ PROCEDURE GET_TMP_$1_MAIN
 IS
     tmp_count number;
     tmp_constraints number;
+    tmp_is_objects number;
 BEGIN
+
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$1_MAIN';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$1_MAIN CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$1_MAIN
+                                           (    ID NUMBER, 
+                                                CALENDAR_ID NUMBER, 
+                                                TITLE_NUMBER NUMBER, 
+                                                FINANCING_SOURCE_ID NUMBER, 
+                                                MSK_GOV_PROGRAM_ID NUMBER, 
+                                                POWER_ID NUMBER, 
+                                                TITLE_STATE_ID NUMBER, 
+                                                START_CONSTR NUMBER, 
+                                                STOP_CONSTR NUMBER, 
+                                                COB_TYPE_ID NUMBER, 
+                                                VALUE_FULL NUMBER, 
+                                                VALUE_DONE NUMBER, 
+                                                VALUE_CURR NUMBER, 
+                                                D_YEAR NUMBER(10,0)
+                                            )
+                                              TABLESPACE USERS';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$1_MAIN  IS ''' || 'Временная таблица' || '''';
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.TMP_$1_MAIN' ;
     SELECT count(*) INTO tmp_constraints FROM all_constraints WHERE owner = 'PBI' AND constraint_name = 'INX_TMP_$1_MAIN_PK';
     IF tmp_constraints > 0 THEN
         EXECUTE IMMEDIATE 'ALTER TABLE TMP_$1_MAIN DROP CONSTRAINT INX_TMP_$1_MAIN_PK';
     END IF;
-INSERT INTO pbi.TMP_$1_MAIN (calendar_id,  title_number, financing_source_id, power_id, title_state_id, start_constr, stop_constr, cob_type_id,  value_full,  value_done,  value_curr, msk_gov_program_id, d_year)
+    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_sequences WHERE sequence_owner = 'PBI' AND sequence_name = 'SEQ_V3_MAIN';
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_V3_MAIN';
+    END IF; 
+   EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_V3_MAIN  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
+    
+    EXECUTE IMMEDIATE 'create or replace trigger PBI.NEWID_V3_MAIN 
+                 BEFORE INSERT ON PBI.TMP_$1_MAIN 
+                 FOR EACH ROW 
+                 BEGIN  
+                 if inserting then   
+                 if :NEW.ID is null or :NEW.ID<=0 then  
+                 select PBI.SEQ_V3_MAIN.nextval into :NEW.ID from dual;   
+                 end if; 
+                 end if; 
+                 end;';
+    EXECUTE IMMEDIATE '
+    INSERT INTO pbi.TMP_$1_MAIN (calendar_id,  title_number, financing_source_id, power_id, title_state_id, start_constr, stop_constr, cob_type_id,  value_full,  value_done,  value_curr, msk_gov_program_id, d_year)
     WITH 
     dat2 AS
         (
@@ -486,23 +518,47 @@ GROUP BY
         date_to,
         start_constr,
         stop_constr,
-        d_year;
+        d_year';
     commit;
      EXECUTE IMMEDIATE 'ALTER TABLE TMP_$1_MAIN ADD CONSTRAINT INX_TMP_$1_MAIN_PK PRIMARY KEY (ID)';
      commit;
-    SELECT COUNT(*) INTO tmp_count FROM pbi.TMP_$1_MAIN;
-    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
-    VALUES ('I', 'GET_PBI_2V.TMP_$1_MAIN', 'INSERT PBI.TMP_$1_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_TMP_$1_MAIN;
 
 /* create TMP_$2_MAIN */
 PROCEDURE GET_TMP_$2_MAIN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
+    tmp_is_objects number;
     tmp_count number;
 BEGIN
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$2_MAIN';
+        
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$2_MAIN CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.TMP_$2_MAIN
+                                           (        ID NUMBER NOT NULL ENABLE, 
+                                                    CALENDAR_ID NUMBER, 
+                                                    DR NUMBER, 
+                                                    TITLE_NUMBER NUMBER, 
+                                                    FINANCING_SOURCE_ID NUMBER, 
+                                                    MSK_GOV_PROGRAM_ID NUMBER, 
+                                                    POWER_ID NUMBER, 
+                                                    TITLE_STATE_ID NUMBER, 
+                                                    START_CONSTR NUMBER, 
+                                                    STOP_CONSTR NUMBER, 
+                                                    COB_TYPE_ID NUMBER, 
+                                                    VALUE_FULL NUMBER, 
+                                                    VALUE_DONE NUMBER, 
+                                                    VALUE_CURR NUMBER, 
+                                                    D_YEAR NUMBER(10,0)
+                                                   )  
+                                                  TABLESPACE USERS';
+                                                
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE PBI.TMP_$2_MAIN  IS ''' || 'Временная таблица' || '''';
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.TMP_$2_MAIN' ;
-    INSERT INTO pbi.TMP_$2_MAIN
+    EXECUTE IMMEDIATE 'INSERT INTO pbi.TMP_$2_MAIN
     SELECT id, calendar_id,
     RANK() OVER (order by title_number,
         financing_source_id,
@@ -529,12 +585,9 @@ BEGIN
         value_curr,
         d_year
     FROM
-        TMP_$1_MAIN;
+        TMP_$1_MAIN';
         COMMIT;
-    SELECT COUNT(*) INTO tmp_count FROM pbi.TMP_$2_MAIN;
-    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
-    VALUES ('I', 'GET_PBI_2V.TMP_$2_MAIN', 'INSERT PBI.TMP_$2_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
-    DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.TMP_$2_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
+
 END GET_TMP_$2_MAIN;
 
 /*create TMP_$3_MAIN */
@@ -544,21 +597,19 @@ IS
     tmp_indexes number;
     tmp_constraints number;
     tmp_count number;
+    tmp_is_objects number;
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.V3_MAIN' ;
-    SELECT count(*) INTO tmp_constraints FROM all_constraints WHERE owner = 'PBI' AND constraint_name = 'INX_V3_MAIN_PK';
-    IF tmp_constraints > 0 THEN
-        EXECUTE IMMEDIATE 'ALTER TABLE V3_MAIN DROP CONSTRAINT INX_V3_MAIN_PK';
-    END IF;
-    INSERT INTO v3_main (    id,    title_number,    financing_source_id,    msk_gov_program_id,    power_id,    title_state_id,    start_constr,   stop_constr,   cob_type_id,   value_full,   value_done,   value_curr,    num_lag,    d_year)
-    SELECT distinct   dr,  title_number,  financing_source_id,  msk_gov_program_id, power_id, title_state_id,  start_constr,  stop_constr,  cob_type_id, value_full,  value_done,   value_curr, null,  d_year
-    FROM   TMP_$2_MAIN;
+
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'v3_main';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.v3_main CASCADE CONSTRAINTS';
+    END IF;    
+
+    EXECUTE IMMEDIATE 'CREATE TABLE v3_main as  SELECT distinct   dr,  title_number,  financing_source_id,  msk_gov_program_id, power_id, title_state_id,  start_constr,  stop_constr,  cob_type_id, value_full,  value_done,   value_curr,  d_year
+    FROM   TMP_$2_MAIN';
     EXECUTE IMMEDIATE 'ALTER TABLE V3_MAIN ADD CONSTRAINT INX_V3_MAIN_PK PRIMARY KEY (ID)';
     commit;
-
-    SELECT COUNT(*) INTO tmp_count FROM pbi.V3_MAIN;
-    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
-    VALUES ('I', 'GET_PBI_2V.V3_MAIN', 'INSERT PBI.V3_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
 
 -- сборка индексов
     SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK';
@@ -572,125 +623,43 @@ BEGIN
     END IF;
 	commit;
 
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'MAIN_CALENDAR_LINK';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.MAIN_CALENDAR_LINK CASCADE CONSTRAINTS';
+    END IF;
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.MAIN_CALENDAR_LINK  (
+                                                MAIN_ID NUMBER(10,0),
+												CALENDAR_ID NUMBER(10,0)
+                                                )
+                                                TABLESPACE USERS';      
+
+
 -- склейка календаря
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_CALENDAR_LINK' ;
-    INSERT INTO main_calendar_link 
-    SELECT distinct dr, calendar_id FROM  TMP_$2_MAIN;
+    EXECUTE IMMEDIATE 'INSERT INTO main_calendar_link 
+    SELECT distinct dr, calendar_id FROM  TMP_$2_MAIN';
     commit;
 
 --усеченная склейка календаря
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_CALENDAR_LINK_ALT' ;
-    INSERT INTO main_calendar_link_alt
+    EXECUTE IMMEDIATE 'INSERT INTO main_calendar_link_alt
     SELECT m_id, cal_id FROM 
     (
         SELECT mcl1.main_id AS m_id, vc.year,  vc.month, max(mcl1.CALENDAR_ID) AS cal_id
         FROM MAIN_CALENDAR_LINK mcl1
         JOIN V3_CALENDAR vc ON vc.ID = mcl1.CALENDAR_ID 
         GROUP BY mcl1.main_id, vc.year, vc.month
-    );
+    )';
 commit;
 -- сборка индексов
-    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK';
-    IF tmp_constraints = 0 THEN
-       EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK" ON "PBI"."MAIN_CALENDAR_LINK" ("CALENDAR_ID", "MAIN_ID")';
-    END IF;
-
     SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'MAIN_CALENDAR_LINK_ALT';
     IF tmp_constraints = 0 THEN
         EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT" ON "PBI"."MAIN_CALENDAR_LINK_ALT" ("CALENDAR_ID", "MAIN_ID")';
     END IF;
 	commit;
     
-    BEGIN
-    for x in (
-        with  dat as (
-            select id, title_number, calendar_id from
-            (
-            select  m.id, m.title_number, mcla.calendar_id,
-            row_number() over (partition by m.title_number order by mcla.calendar_id) rn
-            from pbi.v3_main m
-            inner join pbi.main_calendar_link_alt mcla ON mcla.main_id = m.id
-            WHERE m.value_full is not null 
-            AND m.TITLE_STATE_ID = 3
-            AND m.POWER_ID IS NULL 
-            order by 4, mcla.calendar_id,  m.title_number
-            )
-            WHERE rn = 1)
-            select  m.id, m.title_number, mcla.calendar_id
-            from pbi.v3_main m
-            inner join dat ON dat.title_number = m.title_number 
-            inner join pbi.main_calendar_link_alt mcla ON mcla.main_id = m.id
-            where m.value_full is null and mcla.calendar_id < dat.calendar_id
-        )
-        LOOP
-            delete from pbi.v3_main where id = x.id;
-            delete from pbi.main_calendar_link_alt where main_id = x.id;
-            delete from pbi.main_calendar_link where main_id = x.id;
-        END LOOP;
-        commit;
-    END; 
 END GET_V3_MAIN;
-
-/*create NUM_LAG */
-PROCEDURE GET_NUM_LAG
------------------------------------------------------------------------------------------------------------------------------------------------------
-IS
-BEGIN
-EXECUTE IMMEDIATE 'update v3_main set num_lag = null';
-FOR x in
-(
-	  WITH dat as (
-			SELECT t."YEAR" ,  t.id,
-				FIRST_VALUE(t.id) OVER (PARTITION BY t.TITLE_NUMBER, t.year ORDER BY t.DATE_FROM desc) AS tmax,
-				ct.COB_ID,
-				m.id main_id,
-				tt.END_DATE,
-                 mcla.calendar_id,
-				CASE 
-					WHEN t.DELIVERY_DATE IS NULL THEN EXTRACT(YEAR FROM END_DATE)
-					ELSE EXTRACT (YEAR FROM t.DELIVERY_DATE)
-				END AS DY
-			FROM stroy.COB_TITLE ct 
-			LEFT JOIN stroy.TITLE t ON t.TITLE_NUMBER = ct.TITLE_NUMBER 
-			LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = t.ID AND tt.TITLE_TERM_TYPE_ID =1
-			INNER JOIN v3_main m ON m.title_number = t.title_number 
-            INNER JOIN pbi.main_calendar_link_alt mcla ON mcla.main_id = m.id
-			INNER JOIN pbi.v3_calendar c ON  mcla.calendar_id = c.id
-		--	INNER JOIN pbi.extend ex ON ex.main_id = m.id
-			WHERE t.STAGE_ID =95
-			  AND t.STATE_ID =3
-			  AND t."YEAR" BETWEEN 2014 and c.year
-              --and t.title_number  = 156179
-			),
-			dat1 AS (
-			select dat."YEAR", main_id,
-			  max(DY) OVER(PARTITION BY cob_id, YEAR) as FIN_Y,
-			  cob_id, 
-              calendar_id,
-			  FIRST_VALUE(YEAR) over(PARTITION BY cob_id ORDER BY YEAR desc) AS CFY
-			FROM dat
-			WHERE dat.id=tmax
-			)
-            SELECT main_id , count(*) dr from (
-                SELECT
-                    dense_rank() over (partition by main_id, cob_id order by calendar_id) rd, main_id
-                FROM dat1
-                WHERE YEAR=FIN_Y
-                  AND fin_y<>cfy)
-            WHERE rd = 1
-			GROUP BY  main_id
-)
-LOOP
-    UPDATE v3_main
-    SET num_lag = x.dr
-WHERE
-    id = x.main_id;
-END LOOP;
-UPDATE v3_main
-		SET num_lag = 0
-		WHERE num_lag is null;
-
-END GET_NUM_LAG;
 
 /*create COB_PP_LINK */
 PROCEDURE GET_COB_PP_LINK
@@ -746,15 +715,15 @@ IS
      tmp number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.GRBS ' ;
-    INSERT INTO pbi.grbs  
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_GRBS_LINK ' ;
+    INSERT INTO pbi.cob_grbs_link  
         WITH
     dat2 as
         (
-                SELECT dat.cob_id, dat.id title_id
+                SELECT  dat.id title_id, title_number
                 FROM 
-                    (SELECT stt.id,  stt.title_number, ct.cob_id, row_number() over (partition by ct.cob_id order by stt.year desc, stt.date_from desc) as RN
+                    (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
                         FROM stroy.title stt
-                            INNER JOIN stroy.cob_title ct ON stt.title_number = ct.title_number 
                         WHERE
                             stt.year >= 2014
                             AND stt.stage_id = 95
@@ -763,15 +732,21 @@ BEGIN
                     WHERE   
                          dat.rn = 1
             )
-    SELECT dat2.cob_id,
-        o.full_name
-    FROM dat2 
+    SELECT ct.cob_id,
+        o.id
+    FROM  dat2
+        INNER JOIN stroy.cob_title ct ON dat2.title_number = ct.title_number 
         JOIN stroy.title_subject_org tso ON tso.title_id = dat2.title_id
             AND tso.Organization_Role_Type_Id = 2
             AND tso.is_main = 'Y'
         JOIN stroy.organization o ON o.ID = tso.organization_id 
-    WHERE 1=1
-    GROUP BY dat2.cob_id , o.full_name;
+    WHERE 1=1 
+    GROUP BY ct.cob_id , o.id;
+    
+    INSERT INTO PBI.GRBS
+    SELECT distinct o.id, o.full_name
+    FROM pbi.cob_grbs_link cgl
+    INNER JOIN stroy.organization o ON o.id = cgl.grbs_id ;
 	commit;
     SELECT COUNT(*) INTO tmp_count FROM pbi.grbs;
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
@@ -786,15 +761,15 @@ IS
      tmp number;
 BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.PREGRBS ' ;
-    INSERT INTO pbi.pregrbs  
-       WITH
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_PREGRBS_LINK ' ;
+    INSERT INTO pbi.cob_pregrbs_link  
+    WITH
     dat2 as
         (
-                SELECT dat.cob_id, dat.id title_id
+                SELECT  dat.id title_id, title_number
                 FROM 
-                    (SELECT stt.id,  stt.title_number, ct.cob_id, row_number() over (partition by ct.cob_id order by stt.year desc, stt.date_from desc) as RN
+                    (SELECT stt.id,  stt.title_number, row_number() over (partition by stt.title_number order by stt.year desc, stt.date_from desc) as RN
                         FROM stroy.title stt
-                            INNER JOIN stroy.cob_title ct ON stt.title_number = ct.title_number 
                         WHERE
                             stt.year >= 2014
                             AND stt.stage_id = 95
@@ -803,24 +778,445 @@ BEGIN
                     WHERE   
                          dat.rn = 1
             )
-    SELECT dat2.cob_id,
-        o.full_name
-    FROM dat2 
+    SELECT ct.cob_id,
+        o.id
+    FROM  dat2
+        INNER JOIN stroy.cob_title ct ON dat2.title_number = ct.title_number 
         JOIN stroy.title_subject_org tso ON tso.title_id = dat2.title_id
             AND tso.Organization_Role_Type_Id = 3
         JOIN stroy.organization o ON o.ID = tso.organization_id 
-    WHERE 1=1
-    GROUP BY dat2.cob_id , o.full_name;
+    WHERE 1=1 
+    GROUP BY ct.cob_id , o.id;
+    
+    INSERT INTO PBI.PREGRBS
+    SELECT distinct o.id, o.full_name
+    FROM pbi.cob_pregrbs_link cgl
+    INNER JOIN stroy.organization o ON o.id = cgl.pregrbs_id ;
 	COMMIT;
     SELECT COUNT(*) INTO tmp_count FROM pbi.pregrbs;
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
     VALUES ('I', 'GET_PBI_2V.PREGRBS', 'INSERT PBI.PREGRBS: ' || to_char(tmp_count) || ' (ROWS)');
 END GET_PREGRBS;
 
+
+/*create V3_EXTEND */
+PROCEDURE GET_V3_EXTEND
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+     tmp_count number;
+     tmp number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.V3_EXTEND';
+    EXECUTE IMMEDIATE 'INSERT INTO pbi.V3_EXTEND (ID, COB_ID, COB_TYPE_ID, IS_CONTR, D_YEAR, STOP_CONSTR, START_CONSTR, M_DATE, NUM_LAG, EXTEND_ID)
+WITH 
+    cal_y AS (
+        --получаем список годов календаря
+        SELECT DISTINCT c."YEAR" AS C_YEAR
+        FROM pbi.CALENDAR c
+        ),
+    first_titles AS (
+        -- получаем последнюю включенную в АИП версию титула каждого коба в каждом году году 
+        select cy.C_YEAR,
+            t."YEAR",
+            t.TITLE_NUMBER,
+            t.id,
+            FIRST_VALUE(t.id) OVER (PARTITION BY t.TITLE_NUMBER, year ORDER BY t.DATE_FROM desc) AS TITLE_MAX,
+            ct.COB_ID,
+            t.DELIVERY_DATE,
+            tt.END_DATE 
+        FROM cal_y cy
+        JOIN stroy.COB_TITLE ct ON 1=1
+        JOIN stroy.TITLE t ON t.TITLE_NUMBER = ct.TITLE_NUMBER 
+        JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = t.ID AND tt.TITLE_TERM_TYPE_ID =1  -- сроки строительства
+        WHERE t.STAGE_ID =95
+          AND t.STATE_ID =3
+          AND t."YEAR" < cy.C_YEAR
+    ),
+    stop_con AS (
+        -- считаем год сдачи для коба в каждом году ниже текущего
+        SELECT C_YEAR,
+            "YEAR",
+            COB_ID,
+            max(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) as STOP_YEAR -- если у титула не заполнен год сдачи, то ставим год окончания строительства
+        FROM first_titles
+        WHERE id = title_max -- данные берем в последних версиях титула в каждом году. если титул в год не приехал, то его пропускаем
+        GROUP BY C_YEAR,  "YEAR",  COB_ID
+        ),
+    year_num_lag AS (
+            -- считаем количество переносов сроков строительства в каждом из годов существания титулов коба (в конце года у всех титулов коба год сдачи был равен текущему)
+            SELECT C_YEAR,
+                cob_ID,
+                count(*) AS NUM_LAG_YEAR
+            FROM stop_con
+            WHERE YEAR = STOP_YEAR
+            GROUP BY C_YEAR,   cob_ID
+    ),
+    dat AS (
+            -- готовим исходник для заполнения таблицы extend
+            SELECT ct.COB_ID,
+              vc.id AS M_DATE,
+              vc."YEAR" AS M_YEAR,
+              t.DELIVERY_DATE,
+              tt.END_DATE,
+              tt.START_DATE,
+              DECODE(NVL(sum(fp.AMOUNT) over(PARTITION BY t."YEAR" , ct.COB_ID),0)*NVL(sum(contr.id) over(PARTITION BY vc.id),0),0,null,1) AS IS_CONTR, -- проверяем чтоб хоть у одного титула объекта был ненуллевой финплан в году
+              -- и наличие заключенного контракта в нужном статусе на дату
+              CASE 
+              -- определяем типы объектов
+                WHEN mck.is_big = 1 THEN 1 
+                WHEN mck.new_year = EXTRACT(YEAR FROM vc.dt) THEN 2 
+                WHEN mck.new_year < EXTRACT(YEAR FROM vc.dt) THEN 3 
+                WHEN mck.new_year > EXTRACT(YEAR FROM vc.dt) THEN 4 
+              END AS COB_TYPE_ID
+            FROM stroy.COB_TITLE ct 
+            JOIN stroy.TITLE t ON ct.TITLE_NUMBER = t.TITLE_NUMBER 
+            LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = t.ID 
+              AND tt.TITLE_TERM_TYPE_ID =1
+            -- находим даты календаря, в которые существовали нужные нам версии титулов
+            JOIN pbi.V3_CALENDAR vc ON vc.DT BETWEEN t.DATE_FROM AND nvl(t.date_to, to_date(t.year||''-12-31'',''YYYY-MM-DD''))
+                AND vc.ID IN (
+                --оставляем даты, в которые у коба в таблице main есть связь с календарем
+                SELECT mcla.CALENDAR_ID 
+                FROM pbi.COB c 
+                JOIN pbi.TITLE t2 ON t2.COB_ID = c.ID 
+                JOIN pbi.V3_MAIN vm ON vm.TITLE_NUMBER = t2.TITLE_NUMBER 
+                JOIN pbi.MAIN_CALENDAR_LINK_ALT mcla ON mcla.MAIN_ID = vm.id
+                WHERE c.ID =ct.COB_ID)
+            JOIN stroy.MV_COB_KIND mck ON mck.ID = ct.COB_ID
+            LEFT JOIN stroy.FINANCIAL_PlAN fp ON
+                fp.TITLE_NUMBER = t.TITLE_NUMBER
+                AND fp.BUDGET_YEAR = t.YEAR
+                -- контрактуемые КБК контрактов
+                AND (fp.kbk LIKE ''%323___''
+                OR fp.kbk LIKE ''%414___''
+                OR fp.kbk LIKE ''%411___''
+                OR fp.kbk LIKE ''%2_____'')
+              -- контракты в нужном нам статусе
+            LEFT JOIN stroy.contract contr ON fp.CONTRACT_ID = contr.ID
+                AND contr.CONTRACT_STATUS_ID IN (1, 500074)
+                -- вот тут мы проверяем чтоб дата заключения контракта была не старше даты календаря
+                AND contr.CONTRACT_DATE <= vc.DT
+            WHERE 1=1
+              -- ограничение для отладки в 10 кобов
+                --AND ct.cob_id = 4884
+                AND t.id IN (SELECT DISTINCT first_value(tt2.id) OVER(PARTITION BY tt2.TITLE_NUMBER, tt2.DATE_FROM ORDER BY tt2.DATE_FROM desc)
+                            FROM stroy.TITLE tt2
+                            WHERE 1=1
+                                AND tt2."YEAR" >=2014
+                                AND tt2.STAGE_ID = 95)
+),
+gp_extend AS(
+-- готовим данные для расчета, считаем значение столбцов таблицы EXTEND
+SELECT COB_ID,
+	COB_TYPE_ID,
+	IS_CONTR,
+	MAX(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) AS D_YEAR,
+	MAX(EXTRACT (YEAR FROM END_DATE)) AS STOP_CONSTR,
+	min(EXTRACT (YEAR FROM START_DATE)) AS START_CONSTR,
+	M_DATE,
+	row_number() OVER(ORDER BY COB_ID) AS ID,
+	M_YEAR
+FROM dat
+GROUP BY COB_ID,
+	M_DATE,
+	COB_TYPE_ID,
+	IS_CONTR,
+	M_YEAR
+)
+SELECT ID,
+	gp_extend.COB_ID,
+	COB_TYPE_ID,
+	IS_CONTR,
+	D_YEAR,
+	STOP_CONSTR,
+	START_CONSTR,
+	M_DATE,
+	nvl(NUM_LAG_YEAR,0) AS NUM_LAG,
+	FIRST_VALUE(ID) OVER(PARTITION BY gp_extend.COB_ID,	COB_TYPE_ID,IS_CONTR,D_YEAR,STOP_CONSTR,START_CONSTR,NUM_LAG_YEAR ORDER BY M_DATE) AS EXTEND_ID
+FROM gp_extend
+-- цепляем таблицу нумлага к extend
+LEFT JOIN year_num_lag ON year_num_lag.C_YEAR=gp_extend.M_YEAR 
+	AND year_num_lag.COB_ID=gp_extend.COB_ID';
+	COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.v3_extend;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.V3_EXTEND', 'INSERT PBI.V3_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');	
+
+    BEGIN
+    FOR x in (
+        SELECT m.id, ve.EXTEND_ID 
+            FROM stroy.COB c 
+            JOIN PBI.TITLE t ON t.COB_ID = c.ID 
+            JOIN PBI.v4_MAIN m ON m.TITLE_NUMBER = t.TITLE_NUMBER 
+            JOIN PBI.MAIN_CALENDAR_LINK_ALT mcla ON m.ID = mcla.MAIN_ID 
+            JOIN PBI.V3_EXTEND ve ON ve.COB_ID = c.ID AND ve.M_DATE = mcla.CALENDAR_ID
+            )
+    LOOP
+        UPDATE v4_main SET extend_id = x.extend_id
+        WHERE id = x.id;
+    END LOOP;
+    commit;
+END;
+
+END GET_V3_EXTEND;
+
+
+/*create GET_PPM */
+PROCEDURE GET_PPM
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+     tmp_count number;
+     tmp number;
+BEGIN
+        EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.PPM';
+INSERT INTO  PPM 
+WITH el_values AS (
+SELECT 
+	DOC.DOC_NUMBER, 
+	DOC.DOC_DATE,
+	CASE 
+        WHEN BA."YEAR" = EXTRACT (YEAR FROM doc.DOC_DATE)then  BA.AMOUNT * 1000000
+	END AS VALUE_PPM_1_EL,
+	CASE 
+        WHEN BA."YEAR" = EXTRACT (YEAR FROM doc.DOC_DATE)+1 then  BA.AMOUNT * 1000000
+	END AS VALUE_PPM_2_EL,
+	CASE 
+        WHEN BA."YEAR" = EXTRACT (YEAR FROM doc.DOC_DATE)+2 then  BA.AMOUNT * 1000000
+	END AS VALUE_PPM_3_EL,
+	CASE 
+        WHEN BA."YEAR" = EXTRACT (YEAR FROM doc.DOC_DATE)+3 then  BA.AMOUNT * 1000000
+	END AS VALUE_PPM_4_EL 
+FROM stroy.BUDGET_ALLOCATION BA
+JOIN stroy.DOCUMENT DOC ON BA.DOCUMENT_ID = DOC.ID),
+sum_ppm AS (SELECT DOC_NUMBER, 
+	DOC_DATE,
+	SUM(VALUE_PPM_1_EL) AS VALUE_PPM_1,
+	SUM(VALUE_PPM_2_EL) AS VALUE_PPM_2,
+	SUM(VALUE_PPM_3_EL) AS VALUE_PPM_3,
+	SUM(VALUE_PPM_4_EL) AS VALUE_PPM_4
+FROM el_values
+GROUP BY DOC_NUMBER, 
+	DOC_DATE
+),
+sum_ppm_trans AS (
+SELECT DOC_NUMBER, DOC_DATE, VALUE_PPM_1 AS VALUE, EXTRACT (YEAR FROM DOC_DATE) AS YEAR, 1 AS IS_CURR FROM sum_ppm
+UNION ALL
+SELECT DOC_NUMBER, DOC_DATE, VALUE_PPM_2 AS VALUE, EXTRACT (YEAR FROM DOC_DATE)+1 AS YEAR, null FROM sum_ppm
+UNION ALL
+SELECT DOC_NUMBER, DOC_DATE, VALUE_PPM_3 AS VALUE, EXTRACT (YEAR FROM DOC_DATE)+2 AS YEAR, null FROM sum_ppm
+UNION ALL
+SELECT DOC_NUMBER, DOC_DATE, VALUE_PPM_4 AS VALUE, EXTRACT (YEAR FROM DOC_DATE)+3 AS YEAR, null FROM sum_ppm)
+SELECT vc.id AS CALENDAR_ID,
+	sum_ppm_trans.VALUE,
+	sum_ppm_trans."YEAR",
+	sum_ppm_trans.IS_CURR,
+	sum_ppm_trans.DOC_NUMBER
+FROM sum_ppm_trans
+JOIN pbi.V3_CALENDAR vc ON vc.dt = DOC_DATE;
+END GET_PPM;
+
+/*create V4_MAIN */
+PROCEDURE GET_V4_MAIN
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+     tmp_count number;
+     tmp number;
+BEGIN
+        EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.v4_main';
+        INSERT INTO pbi.V4_MAIN (ID,	M_DATE,	TITLE_NUMBER,	MSK_GOV_PROGRAM_ID,	FINANCING_SOURCE_ID,	POWER_ID,	TITLE_STATE_ID,	VALUE_FULL,	VALUE_DONE,	VALUE_CONTR)
+        WITH dat AS (
+        SELECT 	vc.id AS M_DATE,
+            t.TITLE_NUMBER,   
+            t.msk_gov_program_id AS MS,
+            NVL(bic.financing_source_id,0) AS FS,
+            p.id power_id,
+            t.state_id title_state_id,
+            bc.EXPENCE_KIND,
+            CASE 
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 3 then  biv.value
+                WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 2 then  biv.value 
+            END AS VALUE_FULL_EL,
+            CASE 
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 4 then  biv.value 
+                WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 4 then  biv.value 
+            END AS VALUE_DONE_EL,
+            CASE 
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 1 then  biv.value 
+                WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 1 then  biv.value 
+            END AS VALUE_CURR_EL,
+            CASE 
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 1 AND (bc.EXPENCE_KIND IN (323, 414, 411) OR bc.EXPENCE_KIND LIKE '2__') then  biv.value 
+            END AS VALUE_CONTR_EL 
+        FROM stroy.TITLE t  
+        join stroy.build_indicator bi ON bi.title_id = t.id
+        -- нужно учесть что исключены мощности (6)
+            AND bi.build_indicator_type_id IN ( 3, 6 )
+                -- мощности (6) и деньги (3)
+            join stroy.build_indicator_value biv ON biv.build_indicator_id = bi.id
+                 /* план не текущий год (1). по ѕ—ƒ (2) контрактна¤ цена (3) и выполнено (4) */
+                AND biv.build_indicator_value_type_id IN ( 1, 2, 3, 4 )
+                --AND NVL(biv.value, 0)  > 0
+                AND ( biv.year IS NULL OR biv.year = t.year )
+                AND biv.quarter_number IS NULL
+        left join stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
+        left join stroy.economical_classifier ec ON ec.id = bic.economical_classifier_id
+        left join stroy.power p ON p.id = bic.power_id 
+        LEFT JOIN stroy.budget_classifier bc ON bc.id = bic.BUDGET_CLASSIFIER_ID 
+        JOIN pbi.v3_calendar vc ON vc.DT BETWEEN t.DATE_FROM AND nvl(t.date_to, to_date(t.year||'-12-31','YYYY-MM-DD'))  
+        WHERE 1=1
+            AND t.id IN (SELECT DISTINCT first_value(t2.id) OVER(PARTITION BY t2.TITLE_NUMBER, t2.DATE_FROM ORDER BY t2.DATE_FROM desc)
+                        FROM stroy.TITLE t2
+                        WHERE 1=1
+                            AND t2."YEAR" >=2014
+                            AND t2.STAGE_ID = 95)	
+            --AND t.TITLE_NUMBER = 154581
+          --AND NOT (build_indicator_value_type_id = 1 AND biv.value = 0)
+        ),
+        dat_gr AS (
+        SELECT M_DATE,
+            TITLE_NUMBER,   
+            MS,
+            FS,
+            power_id,
+            title_state_id,
+            sum(VALUE_FULL_EL) AS VALUE_FULL,
+            SUM(VALUE_DONE_EL) AS VALUE_DONE,
+            SUM(VALUE_CURR_EL) AS VALUE_CURR,
+            SUM(VALUE_CONTR_EL) AS VALUE_CONTR
+        FROM dat
+        GROUP BY  M_DATE,
+            TITLE_NUMBER,   
+            MS,
+            FS,
+            power_id,
+            title_state_id),
+        fs_date AS (
+        -- нахожу корректную дату начала каждого FC в титуле
+        SELECT 
+          min(M_DATE) AS min_FC_date,
+          FS,
+          TITLE_NUMBER
+        FROM dat_gr 
+        WHERE VALUE_FULL IS NOT NULL 
+          AND TITLE_STATE_ID = 3
+          AND POWER_ID IS NULL 
+        GROUP BY FS,
+          TITLE_NUMBER),
+        power_date AS (
+        -- нахожу дату, с которой надо начинать оставл¤ть мощности
+        SELECT 
+          min(M_DATE) AS min_power_date,
+          power_id,
+          TITLE_NUMBER
+        FROM dat_gr 
+        WHERE VALUE_FULL IS NOT NULL 
+          AND TITLE_STATE_ID = 3
+          AND POWER_ID IS not NULL 
+        GROUP BY power_id,
+          TITLE_NUMBER),
+        full_table AS (
+        SELECT dat_power.m_date,
+            dat_power.TITLE_NUMBER,
+            dat_power.MS AS MSK_GOV_PROGRAM_ID,
+            dat_power.FS AS FINANCING_SOURCE_ID,
+            dat_power.POWER_ID,
+            dat_power.TITLE_STATE_ID,
+            dat_power.VALUE_FULL,
+            dat_power.VALUE_DONE,
+            --dat_power.VALUE_CURR,
+            dat_power.VALUE_CONTR
+        FROM dat_gr dat_power 
+        -- оставл¤ю правильные мощности
+        JOIN power_date ON dat_power.TITLE_NUMBER = power_date.TITLE_NUMBER
+            AND dat_power.M_DATE >= power_date.min_power_date
+            AND dat_power.POWER_ID = power_date.POWER_ID
+        UNION ALL 
+        SELECT	dat_fs.m_date,
+            dat_fs.TITLE_NUMBER,
+            dat_fs.MS AS MSK_GOV_PROGRAM_ID,
+            dat_fs.FS AS FINANCING_SOURCE_ID,
+            dat_fs.POWER_ID,
+            dat_fs.TITLE_STATE_ID,
+            dat_fs.VALUE_FULL,
+            dat_fs.VALUE_DONE,
+           -- dat_fs.VALUE_CURR,
+            dat_fs.VALUE_CONTR
+        FROM dat_gr dat_fs
+        -- оставл¤ю правильные деньги
+        JOIN fs_date ON dat_fs.TITLE_NUMBER = fs_date.TITLE_NUMBER
+            AND dat_fs.M_DATE >= fs_date.min_FC_date
+            AND dat_fs.FS = fs_date.FS)
+        SELECT row_number() OVER(ORDER BY TITLE_NUMBER, m_date) AS ID,
+            ft.*
+        FROM full_table ft;
+    commit;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.v4_main;
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_2V.V4_MAIN', 'INSERT PBI.V4_MAIN: ' || to_char(tmp_count) || ' (ROWS)');	
+END GET_V4_MAIN;
+
+/*create DELETE */
+PROCEDURE DELETE_FINAL
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+BEGIN
+
+DELETE FROM TITLE t 
+WHERE t.TITLE_NUMBER NOT IN (SELECT m.TITLE_NUMBER FROM MAIN m);
+
+DELETE FROM COB c
+WHERE c.ID NOT IN (SELECT t.COB_ID FROM TITLE t);
+
+DELETE FROM COB_DISTR_LINK cdl 
+WHERE cdl.COB_ID NOT IN (SELECT id FROM cob);
+
+DELETE FROM DISTR d
+WHERE d.ID NOT IN (SELECT cdl.DISTR_ID FROM COB_DISTR_LINK cdl);
+
+DELETE FROM AO a 
+WHERE a.ID NOT IN (SELECT d.AO_ID FROM DISTR d);
+
+DELETE FROM COB_PREGP_LINK cpl 
+WHERE cpl.COB_ID NOT IN (SELECT id FROM cob);
+
+DELETE FROM PREGP p
+WHERE p.ID NOT IN (SELECT cpl.PREGP_ID FROM COB_PREGP_LINK cpl);
+
+DELETE FROM GP g 
+WHERE g.ID NOT IN (SELECT p.GP_ID FROM PREGP p);
+
+DELETE FROM COB_AIP_LINK cal 
+WHERE cal.COB_ID NOT IN (SELECT id FROM cob);
+
+DELETE FROM COB_PP_LINK cpl2
+WHERE cpl2.cob_id NOT IN  (SELECT id FROM cob);
+
+SELECT pp.ID 
+FROM PP pp
+WHERE pp.ID NOT IN (SELECT cpl2.PP_ID FROM COB_PP_LINK cpl2);
+
+DELETE FROM GP_LF gl 
+WHERE gl.ID NOT IN (SELECT p.GP_ID FROM PP p);
+
+DELETE FROM COB_GRBS_LINK cgl
+WHERE cgl.cob_id NOT IN  (SELECT id FROM cob);
+
+DELETE FROM GRBS gr
+WHERE gr.ID NOT IN (SELECT cgl.GRBS_ID FROM COB_GRBS_ID_LINK cgl);
+
+DELETE FROM COB_PREGRBS_LINK cpgl
+WHERE cpgl.cob_id NOT IN  (SELECT id FROM cob);
+
+DELETE FROM PREGRBS pgr
+WHERE pgr.ID NOT IN (SELECT cpgl.PREGRBS_ID FROM COB_PREGRBS_ID_LINK cpgl);
+
+END DELETE_FINAL;
+
 /*запуск сборки */
 PROCEDURE RUN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
+    tmp_is_objects number;
 BEGIN
     
     /* create V3_CALENDAR */
@@ -838,8 +1234,9 @@ BEGIN
     /*create TMP_$3_MAIN */
     GET_V3_MAIN;
     
-    /*create TMP_$3_MAIN */
-    GET_NUM_LAG;
+    GET_V4_MAIN  ;  
+    
+    GET_V3_EXTEND  ;  
     
     /*create COB_PP_LINK */
     GET_COB_PP_LINK;
@@ -849,12 +1246,40 @@ BEGIN
     
     /*create PREGRBS */
     GET_PREGRBS;
+    
+    /*create GET_PPM */
+    GET_PPM;
+    
+    /*create DELETE */
+    DELETE_FINAL;
+    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$_TITLE_IOT';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$_TITLE_IOT CASCADE CONSTRAINTS';
+    END IF;
+    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$1_MAIN';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$1_MAIN CASCADE CONSTRAINTS';
+    END IF;
+    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'TMP_$2_MAIN';
+        
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$2_MAIN CASCADE CONSTRAINTS';
+    END IF;
+
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'MAIN_CALENDAR_LINK';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.MAIN_CALENDAR_LINK CASCADE CONSTRAINTS';
+    END IF;
+    
+    
 
 END RUN;
 
 END GET_PBI_3V;
-/
-BEGIN
-  GET_PBI_3V.RUN  ;  
-END;
 /
