@@ -621,8 +621,8 @@ BEGIN
         title_state_id,
         value_full,
         value_done,
-        value_contr,
-        extend_id) rn,
+        value_contr
+        ) rn,
         title_number,
         financing_source_id,
         msk_gov_program_id,
@@ -630,9 +630,8 @@ BEGIN
         title_state_id,
         value_full,
         value_done,
-        value_contr,
-        extend_id
-        from v3_main';
+        value_contr
+        from TMP_$1_MAIN';
         COMMIT;
 
 END GET_TMP_$2_MAIN;
@@ -654,9 +653,9 @@ BEGIN
     END IF;    
 
     EXECUTE IMMEDIATE '
-    INSER INTO v3_main
-    SELECT distinct rn, title_number, financing_source_id, msk_gov_program_id, power_id, title_state_id, value_full, value_done, value_contr, extend_id    FROM   TMP_$2_MAIN';
-    EXECUTE IMMEDIATE 'ALTER TABLE V3_MAIN ADD CONSTRAINT INX_V3_MAIN_PK PRIMARY KEY (ID)';
+    INSERT INTO v3_main
+    SELECT distinct rn, title_number, financing_source_id, msk_gov_program_id, power_id, title_state_id, value_full, value_done, value_contr, null    FROM   TMP_$2_MAIN';
+ --   EXECUTE IMMEDIATE 'ALTER TABLE V3_MAIN ADD CONSTRAINT INX_V3_MAIN_PK PRIMARY KEY (ID)';
     commit;
 
 -- сборка индексов
@@ -686,7 +685,7 @@ BEGIN
 -- склейка календаря
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN_CALENDAR_LINK' ;
     EXECUTE IMMEDIATE 'INSERT INTO main_calendar_link 
-    SELECT distinct dr, calendar_id FROM  TMP_$2_MAIN';
+    SELECT distinct rn, m_date FROM  TMP_$2_MAIN';
     commit;
 
 --усеченная склейка календаря
@@ -702,7 +701,7 @@ BEGIN
 commit;
 -- сборка индексов
     SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'MAIN_CALENDAR_LINK_ALT';
-    IF tmp_constraints = 0 THEN
+    IF tmp_indexes = 0 THEN
         EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT" ON "PBI"."MAIN_CALENDAR_LINK_ALT" ("CALENDAR_ID", "MAIN_ID")';
     END IF;
 	commit;
@@ -853,7 +852,24 @@ PROCEDURE GET_V3_EXTEND
 IS
      tmp_count number;
      tmp number;
+     tmp_indexes number;
 BEGIN
+
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK_ALT';
+    IF tmp_indexes = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT" ON "PBI"."MAIN_CALENDAR_LINK_ALT" ("MAIN_ID")';
+    END IF;
+    
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_V3_CALENDAR';
+    IF tmp_indexes = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_V3_CALENDAR" ON "PBI"."V3_CALENDAR" ("ID", "DT")';
+    END IF;    
+    
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_V3_MAIN';
+    IF tmp_indexes = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE INDEX "PBI"."INX_V3_MAIN" ON "PBI"."V3_MAIN" ("ID")';
+    END IF;    
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.V3_EXTEND';
     EXECUTE IMMEDIATE 'INSERT INTO pbi.V3_EXTEND (ID, COB_ID, COB_TYPE_ID, IS_CONTR, D_YEAR, STOP_CONSTR, START_CONSTR, M_DATE, NUM_LAG, EXTEND_ID)
             WITH cal_y AS (
@@ -1124,6 +1140,7 @@ PROCEDURE RUN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
     tmp_is_objects number;
+    tmp_indexes number;
 BEGIN
     
     /* create V3_CALENDAR */
@@ -1183,7 +1200,22 @@ BEGIN
     
     IF tmp_is_objects != 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.MAIN_CALENDAR_LINK CASCADE CONSTRAINTS';
+    END IF;   
+    
+        SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_MAIN_CALENDAR_LINK_ALT';
+    IF tmp_indexes > 0 THEN
+        EXECUTE IMMEDIATE 'DROP INDEX "PBI"."INX_MAIN_CALENDAR_LINK_ALT"';
+    END IF;
+    
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_V3_CALENDAR';
+    IF tmp_indexes > 0 THEN
+        EXECUTE IMMEDIATE 'DROP INDEX "PBI"."INX_V3_CALENDAR"';
     END IF;    
+    
+    SELECT count(*) INTO tmp_indexes FROM all_indexes WHERE owner = 'PBI' AND index_name = 'INX_V3_MAIN';
+    IF tmp_indexes > 0 THEN
+        EXECUTE IMMEDIATE 'DROP INDEX "PBI"."INX_V3_MAIN"';
+    END IF;   
 
 END RUN;
 
