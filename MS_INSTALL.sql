@@ -195,3 +195,157 @@ CREATE TABLE StroyInvest.dbo.COB_AIP_LINK
     AIP_ID    int NOT NULL,
     );
     
+DROP TABLE StroyInvest.dbo.PPM;    
+CREATE TABLE StroyInvest.dbo.PPM
+    (
+    CALENDAR_ID INT NULL, 
+    VALUE INT NULL, 
+    YEAR INT NULL, 
+    IS_CURR INT NULL, 
+    DOC_NUMBER varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    );    
+    
+DROP TABLE StroyInvest.dbo.VALUE_PLAN;    
+CREATE TABLE StroyInvest.dbo.VALUE_PLAN
+    (
+    MAIN_ID INT NULL, 
+    VALUE INT NULL, 
+    YEAR INT NULL, 
+    IS_CURR INT NULL, 
+    CALENDAR_ID INT NULL,
+    );        
+
+DROP TABLE StroyInvest.dbo.GRBS;    
+CREATE TABLE StroyInvest.dbo.GRBS
+    (
+    ID INT NULL, 
+    NAME varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    );  
+                                              
+DROP TABLE StroyInvest.dbo.COB_GRBS_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_GRBS_LINK
+    (
+    COB_ID INT NULL, 
+    GRBS_ID INT NULL,
+    );  
+
+DROP TABLE StroyInvest.dbo.PREGRBS;    
+CREATE TABLE StroyInvest.dbo.PREGRBS
+    (
+    ID INT NULL, 
+    NAME varchar(4000) COLLATE Cyrillic_General_CI_AS NULL,
+    );  
+                 
+  
+DROP TABLE StroyInvest.dbo.COB_PREGRBS_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_PREGRBS_LINK
+    (
+    COB_ID INT NULL, 
+    PREGRBS_ID INT NULL,
+    );  
+
+DROP TABLE StroyInvest.dbo.V3_CALENDAR;    
+CREATE TABLE StroyInvest.dbo.V3_CALENDAR
+    (
+    ID INT NULL, 
+    YEAR INT NULL, 
+    QUARTER INT NULL, 
+    MONTH INT NULL, 
+    DAY INT NULL, 
+    DT DATE NULL, 
+    );          
+    
+DROP TABLE StroyInvest.dbo.COB_PP_LINK;    
+CREATE TABLE StroyInvest.dbo.COB_PP_LINK
+    (
+    COB_ID INT NULL, 
+    PP_ID INT NULL, 
+    );          
+    
+DROP TABLE StroyInvest.dbo.MAIN_CALENDAR_LINK_ALT;    
+CREATE TABLE StroyInvest.dbo.MAIN_CALENDAR_LINK_ALT
+    (
+    MAIN_ID INT NULL, 
+    CALENDAR_ID INT NULL, 
+    );         
+    
+DROP TABLE StroyInvest.dbo.V3_EXTEND;    
+CREATE TABLE StroyInvest.dbo.V3_EXTEND
+    (
+    COB_ID INT NULL, 
+    ID INT NULL, 
+    COB_TYPE_ID INT NULL, 
+    IS_CONTR INT NULL, 
+    D_YEAR INT NULL, 
+    STOP_CONSTR INT NULL, 
+    START_CONSTR INT NULL, 
+    M_DATE INT NULL, 
+    NUM_LAG INT NULL, 
+    EXTEND_ID INT NULL, 
+    );         
+
+DROP TABLE StroyInvest.dbo.V3_MAIN;    
+CREATE TABLE StroyInvest.dbo.V3_MAIN
+    (
+    ID INT NULL, 
+    TITLE_NUMBER INT NULL, 
+    FINANCING_SOURCE_ID INT NULL, 
+    MSK_GOV_PROGRAM_ID INT NULL, 
+    POWER_ID INT NULL, 
+    TITLE_STATE_ID INT NULL, 
+    VALUE_FULL INT NULL, 
+    VALUE_DONE INT NULL, 
+    VALUE_CONTR INT NULL, 
+    EXTEND_ID INT NULL, 
+    );   
+
+                                          
+ DROP TABLE StroyInvest.dbo.V4_EXTEND_FINAL;    
+ CREATE TABLE StroyInvest.dbo.V4_EXTEND_FINAL
+    (
+    ID INT NULL, 
+	COB_TYPE_ID INT NULL, 
+	IS_CONTR INT NULL, 
+	D_YEAR INT NULL, 
+	START_CONSTR INT NULL, 
+	STOP_CONSTR INT NULL, 
+	NUM_LAG NUMBER INT NULL, 
+    );   
+   
+                                             
+ DROP TABLE StroyInvest.dbo.V4_MAIN_FINAL;    
+ CREATE TABLE StroyInvest.dbo.V4_MAIN_FINAL
+    (
+    ID INT NULL, 
+	CALENDAR_ID INT NULL, 
+	TITLE_NUMBER INT NULL, 
+	FINANCING_SOURCE_ID INT NULL, 
+	MSK_GOV_PROGRAM_ID INT NULL, 
+	POWER_ID INT NULL, 
+	TITLE_STATE_ID INT NULL, 
+	VALUE_FULL INT NULL, 
+	VALUE_DONE INT NULL, 
+	VALUE_CONTR INT NULL, 
+	EXTEND_ID INT NULL, 
+    );       
+    
+DROP TABLE StroyInvest.dbo.V4_VALUE_PLAN;    
+ CREATE TABLE StroyInvest.dbo.V4_VALUE_PLAN
+    (
+       MAIN_ID INT NULL, 
+	VALUE INT NULL, 
+	YEAR INT NULL, 
+	IS_CURR INT NULL, 
+    );       
+    
+
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
