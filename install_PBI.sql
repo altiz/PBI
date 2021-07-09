@@ -2,6 +2,14 @@ DECLARE
     tmp_current_user varchar2(64);
     tmp_is_objects number;
 BEGIN
+
+    BEGIN
+    FOR x in (SELECT table_name FROM all_tables WHERE owner = 'PBI' AND table_name like 'PBI_%')
+    LOOP
+        EXECUTE IMMEDIATE 'DROP TABLE ' || x.table_name;
+    END LOOP;
+    commit;
+    END;
    
     SELECT username INTO tmp_current_user FROM user_users;
     
@@ -594,6 +602,11 @@ PROCEDURE GET_TITLE_STATE;
 PROCEDURE GET_ALL_DISTR;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
+/*Вычисляет подрограмму*/
+FUNCTION GET_PREGP(pcosts_classifier_id IN NUMBER) RETURN NUMBER;
+
+function get_adm_reg_by_adm_id(p_adm_id number, type_adm_in number ) return number;
+
 END GET_PBI_2V;
 
 /
@@ -606,7 +619,7 @@ FUNCTION get_distr(pcod_id in number) RETURN NUMBER
 IS
     tmp number;
 BEGIN
-    SELECT DISTINCT   
+/*    SELECT DISTINCT   
     (SELECT DISTINCT id  FROM pbi.pbi_distr WHERE ao_id = distr_id AND id < 100) t  INTO tmp
 FROM(
   SELECT cob_id, get_cob_v2.get_adm_reg_by_adm_id(adm_region_id,3)  distr_id
@@ -649,8 +662,61 @@ FROM(
 WHERE ROWNUM = 1;
     return tmp;
 EXCEPTION WHEN OTHERS THEN
-    RETURN 0;
+    RETURN 0;*/
+null;
 END get_distr;
+
+
+function get_adm_reg_by_adm_id(p_adm_id number, type_adm_in number )
+    return number is
+    v_adm_region_id number;
+    v_exception exception;
+  begin
+
+
+
+
+SELECT A.ID
+INTO V_ADM_REGION_ID
+FROM STROY.ADM_REGION A
+WHERE TYPE = TYPE_ADM_IN --AND DELETE_DATE IS NULL
+START WITH ID = p_adm_id
+CONNECT BY NOCYCLE PRIOR A.ADM_REGION_ID = A.ID;
+
+
+    return v_adm_region_id;
+  exception
+    when NO_DATA_FOUND then
+begin
+SELECT A.ID
+INTO V_ADM_REGION_ID
+FROM STROY.ADM_REGION A
+WHERE TYPE = 2 --AND DELETE_DATE IS NULL
+START WITH ID = P_ADM_ID
+CONNECT BY NOCYCLE PRIOR A.ADM_REGION_ID = A.ID;
+  exception
+    when NO_DATA_FOUND then
+    V_ADM_REGION_ID:=0;
+end;
+    return V_ADM_REGION_ID;
+      --raise_application_error( -20000, sqlerrm(sqlcode));
+  end get_adm_reg_by_adm_id;
+  
+/*Вычисляет подрограмму*/
+FUNCTION GET_PREGP(pcosts_classifier_id IN NUMBER) RETURN NUMBER
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+IS
+    res_id number;
+BEGIN
+    SELECT MIN(cc.id) INTO res_id 
+    FROM  stroy.costs_classifier cc
+    WHERE costs_classifier_id IS NOT NULL
+    START WITH id = pcosts_classifier_id
+    CONNECT BY NOCYCLE PRIOR cc.costs_classifier_id = cc.id;      
+    RETURN res_id;
+EXCEPTION WHEN OTHERS THEN
+    RETURN 0;
+END GET_PREGP;
 
 /* create CALENDAR */
 PROCEDURE GET_CALENDAR
@@ -806,7 +872,7 @@ BEGIN
 
     SELECT DISTINCT c_id, pregp_id FROM
          (
-        SELECT DISTINCT c.id c_id, get_pbi.get_pregp(cct.id) pregp_id
+        SELECT DISTINCT c.id c_id, get_pregp(cct.id) pregp_id
         FROM stroy.cob c    
             INNER JOIN stroy.cob_card cc ON cc.cob_id = c.id
             INNER JOIN stroy.cob_title ct ON ct.cob_id = c.id
@@ -958,7 +1024,7 @@ BEGIN
     SELECT DISTINCT  cob_id, distr_id
     FROM
         (
-        SELECT DISTINCT  cob_id, get_cob_v2.get_adm_reg_by_adm_id(adm_region_id,3)  distr_id
+        SELECT DISTINCT  cob_id, get_adm_reg_by_adm_id(adm_region_id,3)  distr_id
         FROM 
             (
             SELECT  cc.cob_id, adm.adm_region_id
@@ -975,7 +1041,7 @@ BEGIN
                 AND reg.adm_region_id != reg.id
         ) 
         UNION   
-        SELECT DISTINCT cob_id, get_cob_v2.get_adm_reg_by_adm_id(adm_region_id,3)  distr_id
+        SELECT DISTINCT cob_id, get_adm_reg_by_adm_id(adm_region_id,3)  distr_id
         FROM 
             (
             SELECT  cc.cob_id, adm.adm_region_id
@@ -1052,7 +1118,7 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.DISTR' ;
     
     INSERT INTO pbi.distr ( id, name, ao_id)
-    SELECT DISTINCT a.distr_id, adm.name, get_cob_v2.get_adm_reg_by_adm_id(a.distr_id,2)  
+    SELECT DISTINCT a.distr_id, adm.name, get_adm_reg_by_adm_id(a.distr_id,2)  
     FROM pbi.cob_distr_link a
     JOIN stroy.adm_region  adm ON adm.id=a.distr_id;
 
@@ -1641,13 +1707,13 @@ BEGIN
               --  WHERE t.STAGE_ID = 95
                        -- AND t.id = 1765032
             )
-        SELECT distinct dat.cob_id, ar.id distr, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        SELECT distinct dat.cob_id, ar.id distr, ar.name, get_adm_reg_by_adm_id(ar.id,2) ao
         FROM  dat
             LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id 
             LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
               AND ar."TYPE" = 3
         UNION
-        SELECT distinct dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) 
+        SELECT distinct dat.cob_id, ar.id, ar.name, get_adm_reg_by_adm_id(ar.id,2) 
         FROM  dat
             LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id 
             LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
@@ -1718,13 +1784,13 @@ BEGIN
                    -- WHERE t.STAGE_ID = 95
                             --AND t.id = 1765032
                 )
-            SELECT dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+            SELECT dat.cob_id, ar.id, ar.name, get_adm_reg_by_adm_id(ar.id,2) ao
             FROM  dat
                 LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id
                 LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
                   AND ar."TYPE" = 2
             UNION 
-            SELECT distinct dat.cob_id, ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) 
+            SELECT distinct dat.cob_id, ar.id, ar.name, get_adm_reg_by_adm_id(ar.id,2) 
             FROM dat
                 LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id
                 LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
@@ -1762,13 +1828,13 @@ BEGIN
                     INNER JOIN v_title t ON t.title_number = ct.title_number
                 --WHERE t.STAGE_ID = 95
             )
-        SELECT ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        SELECT ar.id, ar.name, get_adm_reg_by_adm_id(ar.id,2) ao
         FROM  dat
             LEFT JOIN stroy.title_adm_region_detail tard ON tard.title_id = dat.title_id 
             LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
               AND ar."TYPE" = 3
         UNION
-        SELECT ar.id, ar.name, get_cob_v2.get_adm_reg_by_adm_id(ar.id,2) ao
+        SELECT ar.id, ar.name, get_adm_reg_by_adm_id(ar.id,2) ao
         FROM  dat
             LEFT JOIN stroy.title_adm_region tard ON tard.title_id = dat.title_id 
             LEFT JOIN stroy.adm_region ar ON ar.ID = tard.adm_region_id 
@@ -2018,9 +2084,9 @@ BEGIN
 /* create PBI_CALENDAR_V3 */
     GET_CALENDAR;
 /* create PBI_MAIN */
-    GET_MAIN;
+  --  GET_MAIN;
 /* create MAIN_PP_LINK */
-    GET_MAIN_PP_LINK;
+  --  GET_MAIN_PP_LINK;
 /* create COB_PREGP_LINK */
 	GET_COB_PREGP_LINK;
 /* create GET_TITLE */
@@ -2136,10 +2202,10 @@ BEGIN
 	COMMIT;
 	
 	/* create GET_EXTEND */
-   GET_EXTEND;
+--   GET_EXTEND;
    
 /* create GET_EXTEND_BOM */
-    GET_EXTEND_BOM;
+ --   GET_EXTEND_BOM;
     
     COMMIT;
 END RUN;
