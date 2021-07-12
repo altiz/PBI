@@ -393,7 +393,7 @@ IS
     tmp_count number;
     tmp_is_objects  number;
 BEGIN
-   
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.VALUE_PLAN';
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'VALUE_PLAN';
     
     IF tmp_is_objects != 0 THEN
