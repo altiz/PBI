@@ -15,7 +15,7 @@ BEGIN
     
  /* CREATE EXTEND*/    
 --------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'EXTEND';
+/*    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'EXTEND';
     
     IF tmp_is_objects != 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.EXTEND CASCADE CONSTRAINTS';
@@ -46,7 +46,7 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_EXTEND';
     END IF; 
    EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_EXTEND  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
-   
+   */
    /* CREATE TITLE*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TITLE';
@@ -313,7 +313,7 @@ BEGIN
 
 /* CREATE MAIN*/    
 --------------------------------------------------------------------------------------------------------------    
-    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'MAIN';
+/*    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'MAIN';
     
     IF tmp_is_objects != 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.MAIN CASCADE CONSTRAINTS';
@@ -358,7 +358,7 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_MAIN';
     END IF; 
     EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_MAIN  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE' ;
-
+*/
 /* CREATE FINANCING_SOURCE*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'FINANCING_SOURCE';
@@ -1288,7 +1288,7 @@ IS
     tmp_count NUMBER;
     com_ number := 0;
 BEGIN
-	INSERT INTO extend (id, start_constr, stop_constr, main_id)
+/*	INSERT INTO extend (id, start_constr, stop_constr, main_id)
 	SELECT pbi.seq_extend.nextval, min_, max_, id
 	FROM
 	(
@@ -1439,7 +1439,8 @@ BEGIN
     VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
     COMMIT;
-
+*/
+    null;
 END GET_EXTEND;
 
 -- загрузка GP
@@ -1539,7 +1540,7 @@ PROCEDURE GET_MAIN
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 IS
     tmp_count number;
-CURSOR title is     
+/*CURSOR title is     
     WITH 
     dat AS
         (
@@ -1577,7 +1578,7 @@ CURSOR title is
                 AND bi.build_indicator_type_id IN ( 3, 6 )
         -- мощности (6) и деньги (3)
             join stroy.build_indicator_value biv ON biv.build_indicator_id = bi.id
-         /* план не текущий год (1). по ПСД (2) контрактная цена (3) и выполнено (4) */
+         -- план не текущий год (1). по ПСД (2) контрактная цена (3) и выполнено (4) 
                 AND biv.build_indicator_value_type_id IN ( 1, 2, 3, 4 )
                 AND NVL(biv.value, 0)  > 0
                 AND ( biv.year IS NULL OR biv.year = dat.year )
@@ -1649,9 +1650,9 @@ GROUP BY
     title_number,
     financing_source_id,
     power_id,
-    title_state_id;
+    title_state_id;*/
 BEGIN
-	EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN' ;
+/*	EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MAIN' ;
     FOR x in title 
     LOOP
         IF NVL(x.full, 0) != 0 THEN
@@ -1678,7 +1679,8 @@ BEGIN
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
     VALUES ('I', 'GET_PBI_2V.GET_MAIN', 'INSERT PBI.MAIN: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_MAIN: ' || to_char(tmp_count) || ' (ROWS)');
-    COMMIT;
+    COMMIT;*/
+    null;
 END GET_MAIN;
 
 /* create GET_ALL_DISTR */
@@ -1951,6 +1953,7 @@ IS
     tmp_count NUMBER;
     com_ number := 0;
 BEGIN
+/*
 BEGIN
   
     INSERT INTO extend (id, start_constr, stop_constr, main_id, cob_type_id)    
@@ -2071,7 +2074,8 @@ BEGIN
     INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
     VALUES ('I', 'GET_PBI_2V.GET_EXTEND', 'INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
     DBMS_OUTPUT.PUT_LINE( '1. INSERT PBI.GET_EXTEND: ' || to_char(tmp_count) || ' (ROWS)');
-    COMMIT;
+    COMMIT;*/
+    null;
 
 END GET_EXTEND_BOM;
 
@@ -2215,6 +2219,7 @@ END GET_PBI_2V;
 /
 -- RUN
 BEGIN
-    GET_PBI_2V.RUN;
+    null;
+--    GET_PBI_2V.RUN;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 END;
