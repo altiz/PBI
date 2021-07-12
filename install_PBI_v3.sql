@@ -393,8 +393,12 @@ IS
     tmp_count number;
     tmp_is_objects  number;
 BEGIN
-   
     EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.VALUE_PLAN';
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = 'PBI' AND table_name = 'VALUE_PLAN';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.VALUE_PLAN CASCADE CONSTRAINTS';
+    END IF;
     EXECUTE IMMEDIATE '
     INSERT INTO pbi.VALUE_PLAN (MAIN_ID,  VALUE, "YEAR", IS_CURR)
         WITH dat AS (
