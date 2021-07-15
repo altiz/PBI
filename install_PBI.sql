@@ -47,6 +47,9 @@ BEGIN
     END IF; 
    EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_EXTEND  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE';
    */
+
+     
+
    /* CREATE TITLE*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'TITLE';
@@ -357,8 +360,10 @@ BEGIN
     IF tmp_is_objects != 0 THEN
         EXECUTE IMMEDIATE 'DROP SEQUENCE  PBI.SEQ_MAIN';
     END IF; 
+
     EXECUTE IMMEDIATE 'CREATE SEQUENCE  PBI.SEQ_MAIN  MINVALUE 1 MAXVALUE 10000000000 INCREMENT BY 1 START WITH 41 CACHE 20 NOORDER  NOCYCLE' ;
 */
+
 /* CREATE FINANCING_SOURCE*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'FINANCING_SOURCE';
@@ -527,7 +532,7 @@ PROCEDURE GET_CALENDAR;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* create PBI_MAIN */
-PROCEDURE GET_MAIN;
+--PROCEDURE GET_MAIN;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* create GET_TITLE */
