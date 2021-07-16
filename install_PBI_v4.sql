@@ -1595,16 +1595,16 @@ BEGIN
                          AND dat.rn = 1
             )
 	SELECT distinct ct.cob_id,
-		sp2.id pp_id
+		NVL(sp2.id, 1) pp_id
 	FROM stroy.COB_TITLE ct 
 	JOIN stroy.TITLE t ON ct.TITLE_NUMBER = t.TITLE_NUMBER
 	INNER JOIN dat2 ON dat2.title_id = t.id
 	JOIN stroy.BUILD_INDICATOR bi ON bi.TITLE_ID = t.ID AND bi.BUILD_INDICATOR_TYPE_ID =3
 	JOIN stroy.BUILD_INDICATOR_CLASSIFIER bic ON bic.id = bi.BUILD_INDICATOR_CLASSIFIER_ID
-	JOIN stroy.BUDGET_CLASSIFIER bc ON bc.ID = bic.BUDGET_CLASSIFIER_ID 
-	JOIN stroy.STATE_PROGRAM sp ON bc.STATE_PROGRAM_ID = sp.ID 
-	JOIN stroy.STATE_PROGRAM sp2 ON sp.PARENT_ID = sp2.id
-	JOIN stroy.STATE_PROGRAM sp3 ON sp2.PARENT_ID = sp3.id
+	LEFT JOIN stroy.BUDGET_CLASSIFIER bc ON bc.ID = bic.BUDGET_CLASSIFIER_ID 
+	LEFT JOIN stroy.STATE_PROGRAM sp ON bc.STATE_PROGRAM_ID = sp.ID 
+	LEFT JOIN stroy.STATE_PROGRAM sp2 ON sp.PARENT_ID = sp2.id
+	LEFT JOIN stroy.STATE_PROGRAM sp3 ON sp2.PARENT_ID = sp3.id
 	WHERE 
         t."YEAR" >=2014
 	    AND t.STAGE_ID =95;
@@ -1855,17 +1855,12 @@ SELECT t.id,
 	t.STAGE_ID
 FROM stroy.TITLE t 
 WHERE 1=1
-  --AND TITLE_NUMBER=703649 
+	--AND TITLE_NUMBER IN (43778,700700)
 	and STAGE_ID =95
 	AND t."YEAR" >=2014
 	AND t."YEAR" = EXTRACT (YEAR FROM t.DATE_FROM)
 	-- выбираем только последние версии, если за день начинаетс¤ несколько титулов
-	AND t.id IN (SELECT max(t2.id) 
-				FROM (
-					SELECT t.id, t.TITLE_NUMBER, t.DATE_FROM 
-					FROM stroy.title t 
-					WHERE t."YEAR" >=2014 
-						AND t.STAGE_ID = 95) t2
+	AND t.id IN (SELECT max(t2.id) FROM (SELECT t.id, t.TITLE_NUMBER, t.DATE_FROM FROM stroy.title t WHERE t."YEAR" >=2014 AND t.STAGE_ID = 95) t2
 				GROUP BY t2.TITLE_NUMBER, TO_CHAR(t2.DATE_FROM,''yyyymmdd''))
 ),
 title_date AS (
@@ -1878,13 +1873,13 @@ WHERE pt."YEAR" >=2014
 GROUP BY pt.id,
 	vc."MONTH"
 UNION 
-SELECT pt.id,
-	min(c.DT) AS M_DATE 
+SELECT min(pt.id),
+	min(c.DT)-1 AS M_DATE 
 FROM predtitle pt 
 JOIN pbi.CALENDAR c ON c.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
 WHERE pt."YEAR" >=2014
 	AND pt.STAGE_ID =95
-GROUP BY pt.id),
+GROUP BY pt.title_number, pt.year),
 dat AS (
 SELECT 	M_DATE,
 	t3.TITLE_NUMBER,   
@@ -1998,76 +1993,9 @@ FROM dat_gr dat_fs
 -- оставл¤ю правильные деньги
 JOIN fs_date ON dat_fs.TITLE_NUMBER = fs_date.TITLE_NUMBER
 	AND dat_fs.M_DATE >= fs_date.min_FC_date
-	AND dat_fs.FS = fs_date.FS),
-min_date_title_year AS (
-SELECT min(m_date) AS M_DATE,
-	TITLE_NUMBER,
-	"YEAR" 
-FROM (SELECT m_date, TITLE_NUMBER, "YEAR" FROM full_table WHERE "YEAR" >=2015)
-GROUP BY TITLE_NUMBER,
-	"YEAR"),
-max_date_titles AS (
-SELECT max(m_date) AS max_title_date,
-	TITLE_NUMBER,
-	"MONTH",
-	"YEAR"
-FROM (SELECT m_date, TITLE_NUMBER, "MONTH",	"YEAR" FROM full_table) 
-GROUP BY TITLE_NUMBER,
-	"MONTH",
-	"YEAR"
-),
-fin_table AS(
--- оставл¤ю в таблице только данные на титул на конец мес¤ца. если верси¤ титуал кончилась до конца мес¤ца, то считаем на этот день
-SELECT ft.m_date,
-	ft."MONTH",
-	ft."YEAR",
-	ft.TITLE_NUMBER,
-	ft.FINANCING_SOURCE_ID,
-	ft.MSK_GOV_PROGRAM_ID,
-	ft.POWER_ID,
-	ft.TITLE_STATE_ID,
-	ft.VALUE_FULL,
-	ft.VALUE_DONE,
-	ft.VALUE_CONTR
-FROM full_table ft	
-JOIN max_date_titles ON ft.TITLE_NUMBER = max_date_titles.TITLE_NUMBER
-	AND ft.m_date = max_date_titles.max_title_date
-UNION 
--- добавл¤ем дно - начало действи¤ самой первой корректной версии титула
-SELECT ft.m_date,
-	ft."MONTH",
-	ft."YEAR",
-	ft.TITLE_NUMBER,
-	ft.FINANCING_SOURCE_ID,
-	ft.MSK_GOV_PROGRAM_ID,
-	ft.POWER_ID,
-	ft.TITLE_STATE_ID,
-	ft.VALUE_FULL,
-	ft.VALUE_DONE,
-	ft.VALUE_CONTR
-FROM full_table ft
-JOIN min_date_titles ON ft.TITLE_NUMBER = min_date_titles.TITLE_NUMBER
-	AND ft.m_date = min_date_titles.min_title_date	
-UNION 
--- добавл¤ем дату начала титулов в каждом году, отличном от 2014
-SELECT ft.m_date,
-	ft."MONTH",
-	ft."YEAR",
-	ft.TITLE_NUMBER,
-	ft.FINANCING_SOURCE_ID,
-	ft.MSK_GOV_PROGRAM_ID,
-	ft.POWER_ID,
-	ft.TITLE_STATE_ID,
-	ft.VALUE_FULL,
-	ft.VALUE_DONE,
-	ft.VALUE_CONTR
-FROM full_table ft
-JOIN min_date_title_year ON ft.TITLE_NUMBER = min_date_title_year.TITLE_NUMBER
-	AND ft.m_date = min_date_title_year.m_date
-	AND ft."YEAR" = min_date_title_year."YEAR"
-)
+	AND dat_fs.FS = fs_date.FS)
 -- добавл¤ю ID, замен¤ю отсутсвующие финансовые значени¤ нул¤ми
-SELECT ROWNUM ID,
+SELECT ROWNUM as id,
 	ct.COB_ID,
  	TO_CHAR(m_date, ''yyyymmdd'') AS CALENDAR_ID,
 	"MONTH",
@@ -2080,8 +2008,8 @@ SELECT ROWNUM ID,
 	nvl(VALUE_FULL,0) as VALUE_FULL,
 	nvl(VALUE_DONE,0) as VALUE_DONE,
 	nvl(VALUE_CONTR,0) as VALUE_CONTR
-FROM fin_table
-JOIN stroy.COB_TITLE ct ON ct.TITLE_NUMBER = fin_table.TITLE_NUMBER';
+FROM full_table
+JOIN stroy.COB_TITLE ct ON ct.TITLE_NUMBER = full_table.TITLE_NUMBER';
 END GET_TMP_$_MAIN;
 
 /* create TMP_$_EXTEND */
@@ -2099,135 +2027,135 @@ BEGIN
     END IF;
     EXECUTE IMMEDIATE 'CREATE TABLE pbi.TMP_$_EXTEND AS
             WITH predtitle AS (
-SELECT t.id, 
-	t.date_from,
-	DECODE(EXTRACT (YEAR FROM t.DATE_TO),t.YEAR,t.DATE_TO,NULL) AS DATE_TO,
-	t.TITLE_NUMBER,
-	t.DELIVERY_DATE,
-	t.YEAR
-FROM stroy.TITLE t 
-WHERE 1=1
-  --AND TITLE_NUMBER=43778 
-  and STAGE_ID =95
-  AND t."YEAR" >=2014
-  AND t.STATE_ID =3
-  AND t."YEAR" = EXTRACT (YEAR FROM t.DATE_FROM)
-  AND t.id IN (SELECT max(t2.id) 
-  -- выбираем только последние версии, если за день начинается несколько титулов
-				FROM stroy.TITLE t2
-				WHERE 1=1
-					AND t2."YEAR" >=2014
-					AND t2.STAGE_ID = 95
-				GROUP BY t2.TITLE_NUMBER, TO_CHAR(t2.DATE_FROM,''yyyymmdd''))
-),
-cal_y AS (
---получаем список годов календаря
-SELECT DISTINCT c."YEAR" AS C_YEAR
-FROM pbi.CALENDAR c ),
-first_titles AS (
--- получаем последнюю включенную в АИП версию титула каждого коба в каждом году году 
-select cy.C_YEAR,
-	pt."YEAR",
-	pt.TITLE_NUMBER,
-	pt.id,
-	FIRST_VALUE(pt.id) OVER (PARTITION BY pt.TITLE_NUMBER, year ORDER BY pt.DATE_FROM desc) AS TITLE_MAX,
-	ct.COB_ID,
-	pt.DELIVERY_DATE,
-	tt.END_DATE 
-FROM cal_y cy
-JOIN stroy.COB_TITLE ct ON 1=1
-JOIN predtitle pt ON pt.TITLE_NUMBER = ct.TITLE_NUMBER 
-JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = pt.ID AND tt.TITLE_TERM_TYPE_ID =1  -- сроки строительства
-WHERE pt."YEAR" < cy.C_YEAR
-),
-stop_con AS (
--- считаем год сдачи для коба в каждом году ниже текущего
-SELECT C_YEAR,
-	"YEAR",
-	COB_ID,
-	max(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) as STOP_YEAR -- если у титула не заполнен год сдачи, то ставим год окончания строительства
-FROM first_titles
-WHERE id = title_max -- данные берем в последних версиях титула в каждом году. если титул в год не приехал, то его пропускаем
-GROUP BY C_YEAR,
-	"YEAR",
-	COB_ID),
-year_num_lag AS (
--- считаем количество переносов сроков строительства в каждом из годов существания титулов коба (в конце года у всех титулов коба год сдачи был равен текущему)
-SELECT C_YEAR,
-	cob_ID,
-	count(*) AS NUM_LAG_YEAR
-FROM stop_con
-WHERE YEAR = STOP_YEAR
-GROUP BY C_YEAR,
-	cob_ID),
-dat AS (
--- готовим исходник для заполнения таблицы extend
-SELECT ct.COB_ID,
-  vc.id AS M_DATE,
-  vc."YEAR" AS M_YEAR,
-  pt.DELIVERY_DATE,
-  tt.END_DATE,
-  tt.START_DATE,
-  DECODE(NVL(sum(fp.AMOUNT) over(PARTITION BY pt."YEAR" , ct.COB_ID),0)*NVL(sum(contr.id) over(PARTITION BY vc.id),0),0,null,1) AS IS_CONTR, -- проверяем чтоб хоть у одного титула объекта был ненуллевой финплан в году
-  -- и наличие заключенного контракта в нужном статусе на дату
-  CASE 
-  -- определяем типы объектов
-    WHEN mck.is_big = 1 THEN 1 
-    WHEN mck.new_year = EXTRACT(YEAR FROM vc.dt) THEN 2 
-    WHEN mck.new_year < EXTRACT(YEAR FROM vc.dt) THEN 3 
-    WHEN mck.new_year > EXTRACT(YEAR FROM vc.dt) THEN 4 
-  END AS COB_TYPE_ID
-FROM stroy.COB_TITLE ct 
-JOIN predtitle pt ON ct.TITLE_NUMBER = pt.TITLE_NUMBER 
-LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = pt.ID 
-  AND tt.TITLE_TERM_TYPE_ID =1
--- находим даты календаря, в которые существовали нужные нам версии титулов
-JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
-	AND vc.ID IN (SELECT vm2.CALENDAR_ID FROM pbi.TMP_$_MAIN vm2 WHERE vm2.TITLE_NUMBER = pt.TITLE_NUMBER AND  vm2.cob_id =ct.COB_ID )
-JOIN stroy.MV_COB_KIND mck ON mck.ID = ct.COB_ID
-LEFT JOIN stroy.FINANCIAL_PlAN fp ON
-	fp.TITLE_NUMBER = pt.TITLE_NUMBER
-	AND fp.BUDGET_YEAR = pt.YEAR
-	-- контрактуемые КБК контрактов
-	AND (fp.kbk LIKE ''%323___''
-	OR fp.kbk LIKE ''%414___''
-	OR fp.kbk LIKE ''%411___''
-	OR fp.kbk LIKE ''%2_____'')
-  -- контракты в нужном нам статусе
-LEFT JOIN stroy.contract contr ON fp.CONTRACT_ID = contr.ID
-	AND contr.CONTRACT_STATUS_ID IN (1, 500074)
-	-- вот тут мы проверяем чтоб дата заключения контракта была не старше даты календаря
-	AND contr.CONTRACT_DATE <= vc.DT
-),
-gp_extend AS(
--- готовим данные для расчета, считаем значение столбцов таблицы EXTEND
-SELECT row_number() OVER(ORDER BY COB_ID) AS ID,
-	COB_ID,
-	max(COB_TYPE_ID) AS COB_TYPE_ID,
-	max(IS_CONTR) AS IS_CONTR,
-	MAX(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) AS D_YEAR,
-	MAX(EXTRACT (YEAR FROM END_DATE)) AS STOP_CONSTR,
-	min(EXTRACT (YEAR FROM START_DATE)) AS START_CONSTR,
-	M_DATE AS CALENDAR_ID,
-	max(M_YEAR) AS M_YEAR
-FROM dat
-GROUP BY COB_ID,
-	M_DATE
-)
-SELECT gp_extend.ID,
-	gp_extend.CALENDAR_ID,
-	gp_extend.COB_ID,
-	gp_extend.COB_TYPE_ID,
-	gp_extend.IS_CONTR,
-	gp_extend.D_YEAR,
-	gp_extend.STOP_CONSTR,
-	gp_extend.START_CONSTR,
-	nvl(NUM_LAG_YEAR,0) AS NUM_LAG,
-	MIN(gp_extend.id) over(PARTITION by gp_extend.COB_ID, gp_extend.COB_TYPE_ID, gp_extend.IS_CONTR, gp_extend.D_YEAR, gp_extend.STOP_CONSTR, gp_extend.START_CONSTR ) AS extend_ID
-FROM gp_extend 
--- цепляем таблицу нумлага к extend
-LEFT JOIN year_num_lag ON year_num_lag.C_YEAR=gp_extend.M_YEAR 
-	AND year_num_lag.COB_ID=gp_extend.COB_ID';
+            SELECT t.id, 
+                t.date_from,
+                DECODE(EXTRACT (YEAR FROM t.DATE_TO),t.YEAR,t.DATE_TO,NULL) AS DATE_TO,
+                t.TITLE_NUMBER,
+                t.DELIVERY_DATE,
+                t.YEAR
+            FROM stroy.TITLE t 
+            WHERE 1=1
+              --AND TITLE_NUMBER=43778 
+              and STAGE_ID =95
+              AND t."YEAR" >=2014
+              AND t.STATE_ID =3
+              AND t."YEAR" = EXTRACT (YEAR FROM t.DATE_FROM)
+              AND t.id IN (SELECT max(t2.id) 
+              -- выбираем только последние версии, если за день начинается несколько титулов
+                            FROM stroy.TITLE t2
+                            WHERE 1=1
+                                AND t2."YEAR" >=2014
+                                AND t2.STAGE_ID = 95
+                            GROUP BY t2.TITLE_NUMBER, TO_CHAR(t2.DATE_FROM,''yyyymmdd''))
+            ),
+            cal_y AS (
+            --получаем список годов календаря
+            SELECT DISTINCT c."YEAR" AS C_YEAR
+            FROM pbi.CALENDAR c ),
+            first_titles AS (
+            -- получаем последнюю включенную в АИП версию титула каждого коба в каждом году году 
+            select cy.C_YEAR,
+                pt."YEAR",
+                pt.TITLE_NUMBER,
+                pt.id,
+                FIRST_VALUE(pt.id) OVER (PARTITION BY pt.TITLE_NUMBER, year ORDER BY pt.DATE_FROM desc) AS TITLE_MAX,
+                ct.COB_ID,
+                pt.DELIVERY_DATE,
+                tt.END_DATE 
+            FROM cal_y cy
+            JOIN stroy.COB_TITLE ct ON 1=1
+            JOIN predtitle pt ON pt.TITLE_NUMBER = ct.TITLE_NUMBER 
+            JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = pt.ID AND tt.TITLE_TERM_TYPE_ID =1  -- сроки строительства
+            WHERE pt."YEAR" < cy.C_YEAR
+            ),
+            stop_con AS (
+            -- считаем год сдачи для коба в каждом году ниже текущего
+            SELECT C_YEAR,
+                "YEAR",
+                COB_ID,
+                max(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) as STOP_YEAR -- если у титула не заполнен год сдачи, то ставим год окончания строительства
+            FROM first_titles
+            WHERE id = title_max -- данные берем в последних версиях титула в каждом году. если титул в год не приехал, то его пропускаем
+            GROUP BY C_YEAR,
+                "YEAR",
+                COB_ID),
+            year_num_lag AS (
+            -- считаем количество переносов сроков строительства в каждом из годов существания титулов коба (в конце года у всех титулов коба год сдачи был равен текущему)
+            SELECT C_YEAR,
+                cob_ID,
+                count(*) AS NUM_LAG_YEAR
+            FROM stop_con
+            WHERE YEAR = STOP_YEAR
+            GROUP BY C_YEAR,
+                cob_ID),
+            dat AS (
+            -- готовим исходник для заполнения таблицы extend
+            SELECT ct.COB_ID,
+              vc.id AS M_DATE,
+              vc."YEAR" AS M_YEAR,
+              pt.DELIVERY_DATE,
+              tt.END_DATE,
+              tt.START_DATE,
+              DECODE(NVL(sum(fp.AMOUNT) over(PARTITION BY pt."YEAR" , ct.COB_ID),0)*NVL(sum(contr.id) over(PARTITION BY vc.id),0),0,null,1) AS IS_CONTR, -- проверяем чтоб хоть у одного титула объекта был ненуллевой финплан в году
+              -- и наличие заключенного контракта в нужном статусе на дату
+              CASE 
+              -- определяем типы объектов
+                WHEN mck.is_big = 1 THEN 1 
+                WHEN mck.new_year = EXTRACT(YEAR FROM vc.dt) THEN 2 
+                WHEN mck.new_year < EXTRACT(YEAR FROM vc.dt) THEN 3 
+                WHEN mck.new_year > EXTRACT(YEAR FROM vc.dt) THEN 4 
+              END AS COB_TYPE_ID
+            FROM stroy.COB_TITLE ct 
+            JOIN predtitle pt ON ct.TITLE_NUMBER = pt.TITLE_NUMBER 
+            LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = pt.ID 
+              AND tt.TITLE_TERM_TYPE_ID =1
+            -- находим даты календаря, в которые существовали нужные нам версии титулов
+            JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
+                AND vc.ID IN (SELECT vm2.CALENDAR_ID FROM pbi.TMP_$_MAIN vm2 WHERE vm2.TITLE_NUMBER = pt.TITLE_NUMBER AND  vm2.cob_id =ct.COB_ID )
+            JOIN stroy.MV_COB_KIND mck ON mck.ID = ct.COB_ID
+            LEFT JOIN stroy.FINANCIAL_PlAN fp ON
+                fp.TITLE_NUMBER = pt.TITLE_NUMBER
+                AND fp.BUDGET_YEAR = pt.YEAR
+                -- контрактуемые КБК контрактов
+                AND (fp.kbk LIKE ''%323___''
+                OR fp.kbk LIKE ''%414___''
+                OR fp.kbk LIKE ''%411___''
+                OR fp.kbk LIKE ''%2_____'')
+              -- контракты в нужном нам статусе
+            LEFT JOIN stroy.contract contr ON fp.CONTRACT_ID = contr.ID
+                AND contr.CONTRACT_STATUS_ID IN (1, 500074)
+                -- вот тут мы проверяем чтоб дата заключения контракта была не старше даты календаря
+                AND contr.CONTRACT_DATE <= vc.DT
+            ),
+            gp_extend AS(
+            -- готовим данные для расчета, считаем значение столбцов таблицы EXTEND
+            SELECT row_number() OVER(ORDER BY COB_ID) AS ID,
+                COB_ID,
+                max(COB_TYPE_ID) AS COB_TYPE_ID,
+                max(IS_CONTR) AS IS_CONTR,
+                MAX(EXTRACT (YEAR FROM nvl(DELIVERY_DATE,END_DATE))) AS D_YEAR,
+                MAX(EXTRACT (YEAR FROM END_DATE)) AS STOP_CONSTR,
+                min(EXTRACT (YEAR FROM START_DATE)) AS START_CONSTR,
+                M_DATE AS CALENDAR_ID,
+                max(M_YEAR) AS M_YEAR
+            FROM dat
+            GROUP BY COB_ID,
+                M_DATE
+            )
+            SELECT gp_extend.ID,
+                gp_extend.CALENDAR_ID,
+                gp_extend.COB_ID,
+                gp_extend.COB_TYPE_ID,
+                gp_extend.IS_CONTR,
+                gp_extend.D_YEAR,
+                gp_extend.STOP_CONSTR,
+                gp_extend.START_CONSTR,
+                nvl(NUM_LAG_YEAR,0) AS NUM_LAG,
+                MIN(gp_extend.id) over(PARTITION by gp_extend.COB_ID, gp_extend.COB_TYPE_ID, gp_extend.IS_CONTR, gp_extend.D_YEAR, gp_extend.STOP_CONSTR, gp_extend.START_CONSTR ) AS extend_ID
+            FROM gp_extend 
+            -- цепляем таблицу нумлага к extend
+            LEFT JOIN year_num_lag ON year_num_lag.C_YEAR=gp_extend.M_YEAR 
+                AND year_num_lag.COB_ID=gp_extend.COB_ID';
 			
 END GET_TMP_$_EXTEND;
 
@@ -2298,6 +2226,8 @@ BEGIN
     GET_POWER;
 /* create RESULT_AIP */
     GET_RESULT_AIP;
+       /*create COB_PP_LINK */
+    GET_COB_PP_LINK;
 /* create PP */    
     GET_PP;
 /* create PREGP */    
@@ -2322,47 +2252,22 @@ BEGIN
 -- загрузка GET_TITLE_STATE
     GET_TITLE_STATE;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    INSERT INTO gp(id, name)
-    VALUES(1, 'Внебюжетное финансирование');
 
-    INSERT INTO gp_lf(id, name)
-    VALUES(1, 'Внебюжетное финансирование');
 
-    INSERT INTO pp(id, name, gp_lf_id)
-    VALUES(1, 'Внебюжетное финансирование', 1);
-    
-    UPDATE pbi.cob_distr_link
-    SET distr_id = 0
-    WHERE distr_id is null;
-
-    --INSERT INTO pbi.distr ( id, name, ao_id)
-    --VALUES (0,  'Район не указан',  0);
-
-    INSERT INTO pbi.AO ( id, name)
-    VALUES (0,  'АО не указан');
-    
-    INSERT INTO financing_source (id, name) 
-    VALUES(0, 'Мощности');
-	
-	DELETE FROM FINANCING_SOURCE fs
-	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.FINANCING_SOURCE_ID = fs.id);
-    
-  
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_TYPE ' ;
     INSERT INTO PBI.COB_TYPE 
     SELECT id, name from STROY.COB_TYPE;
-    
+
     INSERT INTO pbi.cob_type ( id, name)
     VALUES (5,  'Не распределенные');
-    
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.MONTH ' ;
     INSERT INTO  MONTH 
     SELECT DISTINCT EXTRACT(MONTH FROM dt),
     to_char(dt,'MONTH','NLS_DATE_LANGUAGE = RUSSIAN')
     from calendar
     order by 1;
-    
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.AIP ' ;   
     INSERT INTO AIP
     SELECT  row_number() over (order by dat.YEAR desc) rn, dat.YEAR
@@ -2378,7 +2283,7 @@ BEGIN
         GROUP BY ct.cob_id,
            t."YEAR"
     order by  t."YEAR" ) dat ;
-    
+
     EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.COB_AIP_LINK ' ;
     INSERT INTO PBI.COB_AIP_LINK
     SELECT ct.cob_id,  aip.id 
@@ -2392,42 +2297,65 @@ BEGIN
       AND t.date_to IS NULL
     ORDER BY ct.cob_id,
        t."YEAR";
-	
+
     COMMIT;
-	
+
 	    /* create V3_CALENDAR */
     GET_V3_CALENDAR;
-    
+
     /* create TMP_$TMP_$_MAIN */
 	GET_TMP_$_MAIN;
 
     /* create TMP_$TMP_$_EXTEND */
         GET_TMP_$_EXTEND;
-        
+
     /* create GET_EXTEND*/
         GET_EXTEND;
-    
+
     /* create GET_MAIN*/
         GET_MAIN;
-     
-    /*create COB_PP_LINK */
-    GET_COB_PP_LINK;
-    
-    /*create GRBS */
+
+     /*create GRBS */
     GET_GRBS;
-    
+
     /*create PREGRBS */
     GET_PREGRBS;
-    
+
     /*create GET_PPM */
     GET_PPM;
-    
+
     /* create VALUE_PLAN */
     GET_VALUE_PLAN;
-    
+   
+	DELETE FROM FINANCING_SOURCE fs
+	WHERE not exists (SELECT 1 FROM MAIN m WHERE m.FINANCING_SOURCE_ID = fs.id);
+
     /*create DELETE */
     DELETE_FINAL;
-	
+    
+     INSERT INTO gp(id, name)
+    VALUES(1, 'Внебюжетное финансирование');
+
+    INSERT INTO gp_lf(id, name)
+    VALUES(1, 'Внебюжетное финансирование');
+
+    INSERT INTO pp(id, name, gp_lf_id)
+    VALUES(1, 'Внебюжетное финансирование', 1);
+
+    UPDATE pbi.cob_distr_link
+    SET distr_id = 0
+    WHERE distr_id is null;
+
+    --INSERT INTO pbi.distr ( id, name, ao_id)
+    --VALUES (0,  'Район не указан',  0);
+
+    INSERT INTO pbi.AO ( id, name)
+    VALUES (0,  'АО не указан');
+
+    INSERT INTO financing_source (id, name) 
+    VALUES(0, 'Мощности');
+
+        commit;
 END RUN;
 
 END GET_PBI_4V;
