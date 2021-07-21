@@ -259,6 +259,22 @@ BEGIN
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP_LF .NAME IS ''' || '	Название программы ГП' || '''';
    EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP_LF .ID IS ''' || 'ID программы правительства ' || '''';
 
+/* CREATE GP_TLF */    
+--------------------------------------------------------------------------------------------------------------    
+    SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'GP_TLF';
+    
+    IF tmp_is_objects != 0 THEN
+        EXECUTE IMMEDIATE 'DROP TABLE  PBI.GP_TLF  CASCADE CONSTRAINTS';
+    END IF;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE PBI.GP_TLF 
+                                               (ID   NUMBER, 
+                                                NAME                     VARCHAR2(4000 BYTE)
+                                                )';
+                                                
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP_TLF .NAME IS ''' || '	Название программы ГП' || '''';
+   EXECUTE IMMEDIATE 'COMMENT ON COLUMN PBI.GP_TLF .ID IS ''' || 'ID программы правительства ' || '''';
+
 /* CREATE FINANCING_SOURCE*/    
 --------------------------------------------------------------------------------------------------------------    
     SELECT COUNT(*) INTO tmp_is_objects FROM all_tables WHERE owner = tmp_current_user AND table_name = 'FINANCING_SOURCE';
@@ -452,6 +468,7 @@ BEGIN
 												MSK_GOV_PROGRAM_ID NUMBER,
 												POWER_ID NUMBER,
 												TITLE_STATE_ID NUMBER,
+                                                GP_TLF_ID NUMBER,
 												VALUE_FULL NUMBER,
 												VALUE_DONE NUMBER,
 												VALUE_CONTR NUMBER,
@@ -683,6 +700,10 @@ PROCEDURE GET_EXTEND;
 
 /* create GET_MAIN*/
 PROCEDURE GET_MAIN;
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- загрузка GP_TLF
+PROCEDURE GET_GP_TLF;
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -1218,6 +1239,26 @@ BEGIN
     COMMIT;
 END GET_GP_LF;
 
+-- загрузка GP_TLF
+PROCEDURE GET_GP_TLF
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+    IS
+    tmp_count number;
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PBI.GP_TLF' ;
+   INSERT INTO pbi.GP_TLF(ID,name) 
+    SELECT DISTINCT NVL(m.GP_TLF_ID,1) AS ID,
+      DECODE(sp.NAME,NULL,'Внебюджетное финансирование','('||sp.VALUE||') '||sp.NAME) AS Name
+    FROM pbi.MAIN m 
+    LEFT JOIN stroy.STATE_PROGRAM sp ON sp.ID = m.GP_TLF_ID;
+
+    COMMIT;
+    SELECT COUNT(*) INTO tmp_count FROM pbi.GP_TLF;    
+    INSERT INTO PBI_LOG.LOG (msg_type, metod, msg) 
+    VALUES ('I', 'GET_PBI_4V.GET_GP_TLF', 'INSERT PBI.GP_TLF: ' || to_char(tmp_count) || ' (ROWS)');
+    COMMIT;
+END GET_GP_TLF;
+
 /* create GET_ALL_DISTR */
 PROCEDURE GET_ALL_DISTR
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1601,7 +1642,7 @@ BEGIN
 	INNER JOIN dat2 ON dat2.title_id = t.id
 	JOIN stroy.BUILD_INDICATOR bi ON bi.TITLE_ID = t.ID AND bi.BUILD_INDICATOR_TYPE_ID =3
 	JOIN stroy.BUILD_INDICATOR_CLASSIFIER bic ON bic.id = bi.BUILD_INDICATOR_CLASSIFIER_ID
-	LEFT JOIN stroy.BUDGET_CLASSIFIER bc ON bc.ID = bic.BUDGET_CLASSIFIER_ID 
+    LEFT JOIN stroy.BUDGET_CLASSIFIER bc ON bc.ID = bic.BUDGET_CLASSIFIER_ID -- добавл для внебюджетки Ковалев, 17.07.21
 	LEFT JOIN stroy.STATE_PROGRAM sp ON bc.STATE_PROGRAM_ID = sp.ID 
 	LEFT JOIN stroy.STATE_PROGRAM sp2 ON sp.PARENT_ID = sp2.id
 	LEFT JOIN stroy.STATE_PROGRAM sp3 ON sp2.PARENT_ID = sp3.id
@@ -1838,178 +1879,189 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP TABLE  PBI.TMP_$_MAIN CASCADE CONSTRAINTS';
     END IF;
     EXECUTE IMMEDIATE 'CREATE TABLE pbi.TMP_$_MAIN AS
-		WITH predtitle AS (
-SELECT t.id, 
-	t.date_from,
-	DECODE(EXTRACT (YEAR FROM t.DATE_TO),t.YEAR,t.DATE_TO,NULL) AS DATE_TO,
-	t.TITLE_NUMBER,
-	CASE 
-		WHEN t.IS_RSI_O = ''Y'' THEN 5
-		WHEN t.IS_MFZPD = ''Y'' THEN 4
-		WHEN t.IS_RSI = ''Y'' THEN 3
-		WHEN t.IS_RENOVATION = ''Y'' THEN 2
-		ELSE 1
-	END AS msk_gov_program_id,
-	t.state_id,
-	t.YEAR,
-	t.STAGE_ID
-FROM stroy.TITLE t 
-WHERE 1=1
-	--AND TITLE_NUMBER IN (43778,700700)
-	and STAGE_ID =95
-	AND t."YEAR" >=2014
-	AND t."YEAR" = EXTRACT (YEAR FROM t.DATE_FROM)
-	-- выбираем только последние версии, если за день начинаетс¤ несколько титулов
-	AND t.id IN (SELECT max(t2.id) FROM (SELECT t.id, t.TITLE_NUMBER, t.DATE_FROM FROM stroy.title t WHERE t."YEAR" >=2014 AND t.STAGE_ID = 95) t2
-				GROUP BY t2.TITLE_NUMBER, TO_CHAR(t2.DATE_FROM,''yyyymmdd''))
-),
-title_date AS (
-SELECT pt.id,
-	MAX(vc.DT) AS M_DATE
-FROM predtitle pt 
-JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
-WHERE pt."YEAR" >=2014
-	AND pt.STAGE_ID =95
-GROUP BY pt.id,
-	vc."MONTH"
-UNION 
-SELECT min(pt.id),
-	min(c.DT)-1 AS M_DATE 
-FROM predtitle pt 
-JOIN pbi.CALENDAR c ON c.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
-WHERE pt."YEAR" >=2014
-	AND pt.STAGE_ID =95
-GROUP BY pt.title_number, pt.year),
-dat AS (
-SELECT 	M_DATE,
-	t3.TITLE_NUMBER,   
-    t3.msk_gov_program_id AS MS,
-    NVL(bic.financing_source_id,0) AS FS, -- 0 дл¤ мощностей
-    p.id power_id,
-    t3.state_id title_state_id,
-    bc.EXPENCE_KIND, -- дл¤ случа¤, когда в титуле 2 »‘ идентичные по цифрам,
-	CASE -- предельники
-		WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 3 then  biv.value
-		WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 2 then  biv.value 
-	END AS VALUE_FULL_EL,
-	CASE -- выполнение
-		WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 4 then  biv.value 
-        WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 4 then  biv.value 
-	END AS VALUE_DONE_EL,
-	CASE -- контрактуемый лимит
-        WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 1 AND (bc.EXPENCE_KIND IN (323, 414, 411) OR bc.EXPENCE_KIND LIKE ''2__'') then  biv.value 
-	END AS VALUE_CONTR_EL 
-FROM stroy.COB_TITLE ct 
-JOIN predtitle t3 ON ct.TITLE_NUMBER = t3.TITLE_NUMBER 
-JOIN title_date ON title_date.ID = t3.id  -- размазываем значение версии титула на все дни, в которые она действует
-join stroy.build_indicator bi ON bi.title_id = t3.id
--- нужно учесть что исключены мощности (6)
-	AND bi.build_indicator_type_id IN ( 3, 6 )
-        -- мощности (6) и деньги (3)
-	join stroy.build_indicator_value biv ON biv.build_indicator_id = bi.id
-         /* план не текущий год (1). по ѕ—ƒ (2) контрактна¤ цена (3) и выполнено (4) */
-		AND biv.build_indicator_value_type_id IN ( 1, 2, 3, 4 )
-        AND ( biv.year IS NULL OR biv.year = t3.year )
-        AND biv.quarter_number IS NULL
-left join stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
-left join stroy.power p ON p.id = bic.power_id 
-left join stroy.economical_classifier ec ON ec.id = bic.economical_classifier_id
-LEFT JOIN stroy.BUDGET_CLASSIFIER bc ON bc.id = bic.BUDGET_CLASSIFIER_ID 
-),
-dat_gr AS (
--- считаем агрегаты дл¤ итоговых строк таблицы
-SELECT M_DATE,
-	TITLE_NUMBER,   
-    MAX(MS) AS MS,
-    FS,
-    power_id,
-    MAX(title_state_id) AS title_state_id,
-    nullif(sum(VALUE_FULL_EL),0) AS VALUE_FULL,
-    nullif(SUM(VALUE_DONE_EL),0) AS VALUE_DONE,
-    nullif(SUM(VALUE_CONTR_EL),0) AS VALUE_CONTR
-FROM dat
-GROUP BY  M_DATE,
-	TITLE_NUMBER, 
-    FS,
-    power_id),
-fs_date AS (
--- нахожу корректную дату начала каждого FC в титуле
-SELECT 
-  min(M_DATE) AS min_FC_date,
-  FS,
-  TITLE_NUMBER
-FROM (SELECT M_DATE, FS, TITLE_NUMBER FROM dat_gr WHERE VALUE_FULL IS NOT NULL AND TITLE_STATE_ID = 3 AND POWER_ID IS NULL)   
-GROUP BY FS,
-  TITLE_NUMBER),
-power_date AS (
--- нахожу корректную дату начала каждой мощности в титуле
-SELECT 
-  min(M_DATE) AS min_power_date,
-  power_id,
-  TITLE_NUMBER
-FROM (SELECT M_DATE, POWER_ID, TITLE_NUMBER FROM dat_gr WHERE VALUE_FULL IS NOT NULL AND TITLE_STATE_ID = 3 AND POWER_ID IS NOT NULL) 
-GROUP BY power_id,
-  TITLE_NUMBER),
-min_date_titles AS (
--- нахожу дату, после которой данные в титуле считаютс¤ валидными
-SELECT min(min_FC_date) AS min_title_date,
-	TITLE_NUMBER
-FROM fs_date
-GROUP BY TITLE_NUMBER
-),
-full_table AS (
--- собираю полную итоговую таблицу
-SELECT dat_power.m_date,
- 	EXTRACT (MONTH FROM M_DATE) AS "MONTH",
-	EXTRACT (YEAR FROM M_DATE) AS "YEAR" ,
-	dat_power.TITLE_NUMBER,
-	dat_power.MS AS MSK_GOV_PROGRAM_ID,
-	dat_power.FS AS FINANCING_SOURCE_ID,
-	dat_power.POWER_ID,
-	dat_power.TITLE_STATE_ID,
-	dat_power.VALUE_FULL,
-	dat_power.VALUE_DONE,
-	dat_power.VALUE_CONTR
-FROM dat_gr dat_power 
--- оставл¤ю правильные мощности
-JOIN power_date ON dat_power.TITLE_NUMBER = power_date.TITLE_NUMBER
-	AND dat_power.M_DATE >= power_date.min_power_date
-	AND dat_power.POWER_ID = power_date.POWER_ID
-JOIN min_date_titles ON min_date_titles.TITLE_NUMBER = power_date.TITLE_NUMBER	
-	AND dat_power.M_DATE >= min_date_titles.min_title_date
-UNION ALL 
-SELECT	dat_fs.m_date,
- 	EXTRACT (MONTH FROM M_DATE) AS "MONTH",
-	EXTRACT (YEAR FROM M_DATE) AS "YEAR" ,
-	dat_fs.TITLE_NUMBER,
-	dat_fs.MS AS MSK_GOV_PROGRAM_ID,
-	dat_fs.FS AS FINANCING_SOURCE_ID,
-	dat_fs.POWER_ID,
-	dat_fs.TITLE_STATE_ID,
-	dat_fs.VALUE_FULL,
-	dat_fs.VALUE_DONE,
-	dat_fs.VALUE_CONTR
-FROM dat_gr dat_fs
--- оставл¤ю правильные деньги
-JOIN fs_date ON dat_fs.TITLE_NUMBER = fs_date.TITLE_NUMBER
-	AND dat_fs.M_DATE >= fs_date.min_FC_date
-	AND dat_fs.FS = fs_date.FS)
--- добавл¤ю ID, замен¤ю отсутсвующие финансовые значени¤ нул¤ми
-SELECT ROWNUM as id,
-	ct.COB_ID,
- 	TO_CHAR(m_date, ''yyyymmdd'') AS CALENDAR_ID,
-	"MONTH",
-	"YEAR",
-	ct.TITLE_NUMBER,
-	FINANCING_SOURCE_ID,
-	MSK_GOV_PROGRAM_ID,
-	POWER_ID,
-	TITLE_STATE_ID,
-	nvl(VALUE_FULL,0) as VALUE_FULL,
-	nvl(VALUE_DONE,0) as VALUE_DONE,
-	nvl(VALUE_CONTR,0) as VALUE_CONTR
-FROM full_table
-JOIN stroy.COB_TITLE ct ON ct.TITLE_NUMBER = full_table.TITLE_NUMBER';
+        WITH predtitle AS (
+        SELECT t.id, 
+            t.date_from,
+            DECODE(EXTRACT (YEAR FROM t.DATE_TO),t.YEAR,t.DATE_TO,NULL) AS DATE_TO,
+            t.TITLE_NUMBER,
+            CASE 
+                WHEN t.IS_RSI_O = ''Y'' THEN 5
+                WHEN t.IS_MFZPD = ''Y'' THEN 4
+                WHEN t.IS_RSI = ''Y'' THEN 3
+                WHEN t.IS_RENOVATION = ''Y'' THEN 2
+                ELSE 1
+            END AS msk_gov_program_id,
+            t.state_id,
+            t.YEAR,
+            t.STAGE_ID
+        FROM stroy.TITLE t 
+        WHERE 1=1
+            --AND TITLE_NUMBER IN (43778,700700)
+            and STAGE_ID =95
+            AND t."YEAR" >=2014
+            AND t."YEAR" = EXTRACT (YEAR FROM t.DATE_FROM)
+            -- выбираем только последние версии, если за день начинаетс¤ несколько титулов
+            AND t.id IN (SELECT max(t2.id) FROM (SELECT t.id, t.TITLE_NUMBER, t.DATE_FROM FROM stroy.title t WHERE t."YEAR" >=2014 AND t.STAGE_ID = 95) t2
+                        GROUP BY t2.TITLE_NUMBER, TO_CHAR(t2.DATE_FROM,''yyyymmdd''))
+        ),
+        title_date AS (
+        SELECT pt.id,
+            MAX(vc.DT) AS M_DATE
+        FROM predtitle pt 
+        JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM -1 AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
+        WHERE pt."YEAR" >=2014
+            AND pt.STAGE_ID =95
+        GROUP BY pt.id,
+            vc."MONTH"
+        UNION 
+        SELECT min(pt.id),
+            min(c.DT) AS M_DATE 
+        FROM predtitle pt 
+        JOIN pbi.CALENDAR c ON c.DT BETWEEN pt.DATE_FROM - 1 AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
+        WHERE pt."YEAR" >=2014
+            AND pt.STAGE_ID =95
+        GROUP BY pt.title_number, pt.year),
+        dat as(
+        SELECT 	M_DATE,
+            t3.TITLE_NUMBER,   
+            t3.msk_gov_program_id AS MS,
+            NVL(bic.financing_source_id,0) AS FS, -- 0 дл¤ мощностей
+            p.id power_id,
+            t3.state_id title_state_id,
+            bc.EXPENCE_KIND, -- дл¤ случа¤, когда в титуле 2 »‘ идентичные по цифрам,
+            CASE -- √ѕ
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 1 AND biv."YEAR" = t3.YEAR 
+                AND biv.value >0 AND biv.QUARTER_NUMBER IS NULL then NVL(sp3.id,1)
+            END AS GP_id,
+            CASE -- предельники
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 3 then  biv.value
+                WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 2 then  biv.value 
+            END AS VALUE_FULL_EL,
+            CASE -- выполнение
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 4 then  biv.value 
+                WHEN  build_indicator_type_id = 6 AND build_indicator_value_type_id = 4 then  biv.value 
+            END AS VALUE_DONE_EL,
+            CASE -- контрактуемый лимит
+                WHEN  build_indicator_type_id = 3 AND build_indicator_value_type_id = 1 AND (bc.EXPENCE_KIND IN (323, 414, 411) OR bc.EXPENCE_KIND LIKE ''2__'') then  biv.value 
+            END AS VALUE_CONTR_EL 
+        FROM stroy.COB_TITLE ct 
+        JOIN predtitle t3 ON ct.TITLE_NUMBER = t3.TITLE_NUMBER 
+        JOIN title_date ON title_date.ID = t3.id  -- размазываем значение версии титула на все дни, в которые она действует
+        join stroy.build_indicator bi ON bi.title_id = t3.id
+        -- нужно учесть что исключены мощности (6)
+            AND bi.build_indicator_type_id IN ( 3, 6 )
+                -- мощности (6) и деньги (3)
+            join stroy.build_indicator_value biv ON biv.build_indicator_id = bi.id
+                 /* план не текущий год (1). по ѕ—ƒ (2) контрактна¤ цена (3) и выполнено (4) */
+                AND biv.build_indicator_value_type_id IN ( 1, 2, 3, 4 )
+                AND ( biv.year IS NULL OR biv.year = t3.year )
+                AND biv.quarter_number IS NULL
+        left join stroy.build_indicator_classifier bic ON bic.id = bi.build_indicator_classifier_id
+        left join stroy.power p ON p.id = bic.power_id 
+        left join stroy.economical_classifier ec ON ec.id = bic.economical_classifier_id
+        LEFT JOIN stroy.BUDGET_CLASSIFIER bc ON bc.id = bic.BUDGET_CLASSIFIER_ID 
+        LEFT JOIN (SELECT spr.id, spr.PARENT_ID FROM stroy.STATE_PROGRAM spr) sp ON bc.STATE_PROGRAM_ID = sp.ID 
+        LEFT JOIN (SELECT spr.id, spr.PARENT_ID FROM stroy.STATE_PROGRAM spr) sp2 ON sp.PARENT_ID = sp2.id
+        LEFT JOIN (SELECT spr.id, spr.PARENT_ID FROM stroy.STATE_PROGRAM spr) sp3 ON sp2.PARENT_ID = sp3.id
+        ),
+        dat_gr AS (
+        -- считаем агрегаты дл¤ итоговых строк таблицы
+        SELECT M_DATE,
+            TITLE_NUMBER,   
+            MAX(MS) AS MS,
+            FS,
+            power_id,
+            max(GP_ID) AS GP_ID,
+            MAX(title_state_id) AS title_state_id,
+            nullif(sum(VALUE_FULL_EL),0) AS VALUE_FULL,
+            nullif(SUM(VALUE_DONE_EL),0) AS VALUE_DONE,
+            nullif(SUM(VALUE_CONTR_EL),0) AS VALUE_CONTR
+        FROM dat
+        GROUP BY  M_DATE,
+            TITLE_NUMBER, 
+            FS,
+            power_id),
+        fs_date AS (
+        -- нахожу корректную дату начала каждого FC в титуле
+        SELECT 
+          min(M_DATE) AS min_FC_date,
+          FS,
+          TITLE_NUMBER
+        FROM (SELECT M_DATE, FS, TITLE_NUMBER FROM dat_gr WHERE VALUE_FULL IS NOT NULL AND TITLE_STATE_ID = 3 AND POWER_ID IS NULL)   
+        GROUP BY FS,
+          TITLE_NUMBER),
+        power_date AS (
+        -- нахожу корректную дату начала каждой мощности в титуле
+        SELECT 
+          min(M_DATE) AS min_power_date,
+          power_id,
+          TITLE_NUMBER
+        FROM (SELECT M_DATE, POWER_ID, TITLE_NUMBER FROM dat_gr WHERE VALUE_FULL IS NOT NULL AND TITLE_STATE_ID = 3 AND POWER_ID IS NOT NULL) 
+        GROUP BY power_id,
+          TITLE_NUMBER),
+        min_date_titles AS (
+        -- нахожу дату, после которой данные в титуле считаютс¤ валидными
+        SELECT min(min_FC_date) AS min_title_date,
+            TITLE_NUMBER
+        FROM fs_date
+        GROUP BY TITLE_NUMBER
+        ),
+        full_table AS (
+        -- собираю полную итоговую таблицу
+        SELECT dat_power.m_date,
+            EXTRACT (MONTH FROM M_DATE) AS "MONTH",
+            EXTRACT (YEAR FROM M_DATE) AS "YEAR" ,
+            dat_power.TITLE_NUMBER,
+            dat_power.MS AS MSK_GOV_PROGRAM_ID,
+            dat_power.FS AS FINANCING_SOURCE_ID,
+            dat_power.POWER_ID,
+            dat_power.TITLE_STATE_ID,
+            dat_power.GP_ID,
+            dat_power.VALUE_FULL,
+            dat_power.VALUE_DONE,
+            dat_power.VALUE_CONTR
+        FROM dat_gr dat_power 
+        -- оставл¤ю правильные мощности
+        JOIN power_date ON dat_power.TITLE_NUMBER = power_date.TITLE_NUMBER
+            AND dat_power.M_DATE >= power_date.min_power_date
+            AND dat_power.POWER_ID = power_date.POWER_ID
+        JOIN min_date_titles ON min_date_titles.TITLE_NUMBER = power_date.TITLE_NUMBER	
+            AND dat_power.M_DATE >= min_date_titles.min_title_date
+        UNION ALL 
+        SELECT	dat_fs.m_date,
+            EXTRACT (MONTH FROM M_DATE) AS "MONTH",
+            EXTRACT (YEAR FROM M_DATE) AS "YEAR" ,
+            dat_fs.TITLE_NUMBER,
+            dat_fs.MS AS MSK_GOV_PROGRAM_ID,
+            dat_fs.FS AS FINANCING_SOURCE_ID,
+            dat_fs.POWER_ID,
+            dat_fs.TITLE_STATE_ID,
+            dat_fs.GP_ID,
+            dat_fs.VALUE_FULL,
+            dat_fs.VALUE_DONE,
+            dat_fs.VALUE_CONTR
+        FROM dat_gr dat_fs
+        -- оставл¤ю правильные деньги
+        JOIN fs_date ON dat_fs.TITLE_NUMBER = fs_date.TITLE_NUMBER
+            AND dat_fs.M_DATE >= fs_date.min_FC_date
+            AND dat_fs.FS = fs_date.FS)
+        -- добавл¤ю ID, замен¤ю отсутсвующие финансовые значени¤ нул¤ми
+        SELECT ROWNUM as ID,
+            ct.COB_ID,
+            TO_CHAR(m_date, ''yyyymmdd'') AS CALENDAR_ID,
+            "MONTH",
+            "YEAR",
+            ct.TITLE_NUMBER,
+            FINANCING_SOURCE_ID,
+            MSK_GOV_PROGRAM_ID,
+            POWER_ID,
+            TITLE_STATE_ID,
+            GP_ID AS GP_TLF_ID,
+            nvl(VALUE_FULL,0) as VALUE_FULL,
+            nvl(VALUE_DONE,0) as VALUE_DONE,
+            nvl(VALUE_CONTR,0) as VALUE_CONTR
+        FROM full_table
+        JOIN stroy.COB_TITLE ct ON ct.TITLE_NUMBER = full_table.TITLE_NUMBER';
 END GET_TMP_$_MAIN;
 
 /* create TMP_$_EXTEND */
@@ -2110,7 +2162,7 @@ BEGIN
             LEFT JOIN stroy.TITLE_TERM tt ON tt.TITLE_ID = pt.ID 
               AND tt.TITLE_TERM_TYPE_ID =1
             -- находим даты календаря, в которые существовали нужные нам версии титулов
-            JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
+            JOIN pbi.CALENDAR vc ON vc.DT BETWEEN pt.DATE_FROM - 1 AND nvl(pt.date_to, to_date(pt.year||''-12-31'',''YYYY-MM-DD''))
                 AND vc.ID IN (SELECT vm2.CALENDAR_ID FROM pbi.TMP_$_MAIN vm2 WHERE vm2.TITLE_NUMBER = pt.TITLE_NUMBER AND  vm2.cob_id =ct.COB_ID )
             JOIN stroy.MV_COB_KIND mck ON mck.ID = ct.COB_ID
             LEFT JOIN stroy.FINANCIAL_PlAN fp ON
@@ -2169,14 +2221,15 @@ BEGIN
    
     EXECUTE IMMEDIATE 'TRUNCATE TABLE pbi.MAIN';
     EXECUTE IMMEDIATE '
-	INSERT INTO pbi.MAIN (ID, CALENDAR_ID, TITLE_NUMBER, FINANCING_SOURCE_ID, MSK_GOV_PROGRAM_ID, POWER_ID, TITLE_STATE_ID, VALUE_FULL, VALUE_DONE, VALUE_CONTR, EXTEND_ID)
+	INSERT INTO pbi.MAIN (ID, CALENDAR_ID, TITLE_NUMBER, FINANCING_SOURCE_ID, MSK_GOV_PROGRAM_ID, POWER_ID, TITLE_STATE_ID, GP_TLF_ID, VALUE_FULL, VALUE_DONE, VALUE_CONTR, EXTEND_ID)
 		SELECT vmg.ID,
 			vmg.CALENDAR_ID,
 			vmg.TITLE_NUMBER,
 			vmg.FINANCING_SOURCE_ID,
 			vmg.MSK_GOV_PROGRAM_ID,
 			vmg.POWER_ID,
-			vmg.TITLE_STATE_ID,
+            vmg.TITLE_STATE_ID,
+            vmg.GP_TLF_ID,
 			vmg.VALUE_FULL,
 			vmg.VALUE_DONE,
 			vmg.VALUE_CONTR,
@@ -2222,8 +2275,7 @@ BEGIN
     GET_TITLE;
 /* create GET_FINANCING_SOURCE */
     GET_FINANCING_SOURCE;
-/* create GET_POWER */
-    GET_POWER;
+
 /* create RESULT_AIP */
     GET_RESULT_AIP;
        /*create COB_PP_LINK */
@@ -2314,6 +2366,12 @@ BEGIN
 
     /* create GET_MAIN*/
         GET_MAIN;
+     
+     /* create GET_POWER */
+    GET_POWER;
+    
+    -- загрузка GP_TLF
+    GET_GP_TLF;
 
      /*create GRBS */
     GET_GRBS;
